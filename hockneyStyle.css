@@ -12,6 +12,9 @@ input {
 	/*border-radius: 3px;*/
 	font-size: 1.2em;
 }
+input [type='checkbox'] {
+	border: red solid 3px;
+}
 img {
     vertical-align: bottom;
 }
@@ -242,6 +245,9 @@ button {
 #alignButton {
     background: url(svg/align.svg) center center no-repeat;
 }
+#copyButton {
+    background: url(svg/copy.svg) center center no-repeat;
+}
 #doubleButton {
     background: url(svg/double.svg) center center no-repeat;
 }
@@ -264,12 +270,13 @@ button {
     position: fixed;
     left: 48px;
     top: 48px;
-    color: blue;
+    color: black;
     background-color: white;
     opacity: 0.5;
     padding: 4px;
     font-size: 1.2em;
     font-weight: bold;
+    font-style: italic;
     display: block;
     z-index: 13;
 }

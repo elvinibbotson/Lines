@@ -119,7 +119,7 @@
     <div id='line'></div>
     <button id='undoButton' class='iconButton'></button>
     <div id='docDialog' class='dialog'>
-        <p>DRAWING: <span id='drawingName'></span></p>
+        <p><b>DRAWING:</b> <span id='drawingName'></span></p>
         <p><span id='drawingSize'></span> | <span id='drawingAspect'></span> | 1:<span id='drawingScale'></span></p>
         <p>grid<input type='checkbox' id='gridSnap'>size: <select id='gridSize'>
             <option value=5>5mm</option>
@@ -137,7 +137,7 @@
         <p><button id='new'>NEW</button> <button id='load'>LOAD</button> <button id='save'>SAVE</button> <button id='print'>PRINT</button></p>
     </div>
     <div id='newDrawingDialog' class='dialog'>
-        <p><button id='createNewDrawing'>NEW DRAWING</button></p>
+        <button id='createNewDrawing'>NEW DRAWING</button>
         <p>size:
         <select id='sizeSelect'>
             <option value=0>A4 (297x210mm)</option>
@@ -167,7 +167,7 @@
         </select>
     </div>
     <div id='loadDialog' class='dialog'>
-        <p>LOAD</p>
+        <b>LOAD<b></b>
         <p>
         <input type='radio' name='loadMethod' id='replace' checked>
         <label for='replace'>replace</label><br>
@@ -182,17 +182,17 @@
         </p>
     </div>
     <div id='saveDialog' class='dialog'>
-        <p><button id='confirmSave'>SAVE</button></p>
+        <button id='confirmSave'>SAVE</button>
         <p>as <input type='text' id='saveName' class='nameField'/>.json</p>
         <p>The file will appear in your downloads folder</p>
     </div>
     <div id='printDialog' class='dialog'>
-	    <p><button id='confirmPrint'>SAVE</button> as printable SVG file</p>
+	    <button id='confirmPrint'>SAVE</button> as printable SVG file
 		<p>file name <input type='text' id='printName' class='nameField'>.svg</p>
 		<p>The saved <i>scalable vector graphics</i> file<br>will appear in your downloads folder.</p>
 	</div>
     <div id='dimDialog' class='dialog'>
-        <p><button id='confirmDim'>DIMENSION</button></p>
+        <button id='confirmDim'>DIMENSION</button>
         <input type='radio' name='dimDir' id='horizontal' value='h'>
         <label for='horizontal'>horizontal</label><br>
         <input type='radio' name='dimDir' id='vertical' value='v'>
@@ -209,6 +209,7 @@
     <div id='stylesDialog' class='dialog'>
         <p>line 
         <select id='lineType'>
+        	<option value='none'>none</option>
             <option value='solid' selected>solid</option>
             <option value='dashed'>dashed</option>
             <option value='dotted'>dotted</option>
@@ -248,49 +249,49 @@
         </select> blur
     </div>
     <div id='removeDialog' class='dialog'>
-        <p><button id='confirmRemove'>REMOVE</button></p>
+        <button id='confirmRemove'>REMOVE</button>
         <p>selected element(s)?</p>
     </div>
     <div id='moveDialog' class='dialog'>
-        <p><button id='confirmMove'>MOVE</button></p>
+        <button id='confirmMove'>MOVE</button>
         <p><input type='number' id='moveRight'/><img src='svg/up.svg' class='spin90'/>
         <input type='number' id='moveDown'/><img src='svg/up.svg' class='spin180'/></p>
         <p>...or <input type='number' id='moveDist'/> @ <input type='number' id='moveAngle'/> &deg;</p>
     </div>
     <div id='spinDialog' class='dialog'>
-        <p><button id='confirmSpin'>SPIN</button></p>
+        <button id='confirmSpin'>SPIN</button>
         <p>clockwise <input type='number' id='spinAngle'/>&deg;</p>
     </div>
     <div id='flipDialog' class='dialog'>
-        <p><b>FLIP</b></p>
-        <label for='copy' id='copyLabel'>copy</label><input type='checkbox' id='copy'/>
+        <b>FLIP</b>
+        <!--label for='copy' id='copyLabel'>copy</label><input type='checkbox' id='copy'/-->
         <div id='flipOptions'>
             <img src='svg/flip.svg'/><img src='svg/flip.svg' class='spin90'/>   
         </div>
     </div>
     <div id='alignDialog' class='dialog'>
-        <p>ALIGN</p>
+        <b>ALIGN</b>
         <div id='alignOptions'>
             <img src='svg/align.svg'/><img src='svg/centre.svg'/><img src='svg/align.svg' class='spin180'/><br>
             <img src='svg/align.svg' class='spin90'/><img src='svg/centre.svg' class='spin90'/><img src='svg/align.svg' class='spin270'/>
         </div>
     </div>
     <div id='doubleDialog' class='dialog'>
-        <p><button id='confirmDouble'>DOUBLE</button></p>
+        <button id='confirmDouble'>DOUBLE</button>
         <p><input type='number' id='offset'/>mm right/outside
         <p>negative offsets are left/inside</p>
     </div>
     <div id='repeatDialog' class='dialog'>
-        <p><button id='confirmRepeat'>REPEAT</button></p>
+        <button id='confirmRepeat'>REPEAT</button>
         <p><input type='number' id='countH'/>@<input type='number' id='distH'/>mm<img src='svg/up.svg' class='spin90'/></p>
         <p><input type='number' id='countV'/>@<input type='number' id='distV'/>mm<img src='svg/up.svg' class='spin180'/></p>
     </div>
     <div id='filletDialog' class='dialog'>
-        <p><button id='confirmFillet'>FILLET</button></p>
+        <button id='confirmFillet'>FILLET</button>
         <p>radius:<input type='number' id='filletR'/>mm</p>
     </div>
     <div id='combineDialog' class='dialog'>
-        <p><button id='confirmCombine'>COMBINE</button></p>
+        <button id='confirmCombine'>COMBINE</button>
         <!--p>scale? <input type='checkbox' id='combiScale'/></p-->
         <p>name: <input type='text' id='combiName'/>.json</p>
     </div>

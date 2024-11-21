@@ -626,16 +626,16 @@ id('confirmSpin').addEventListener('click',function() {
 })
 id('flipButton').addEventListener('click',function() {
     if(type(element)=='dim') return; // cannot flip dimensions
-    id('copyLabel').style.color=(anchor)?'white':'gray';
-    id('copy').disabled=!anchor;
+    // id('copyLabel').style.color=(anchor)?'white':'gray';
+    // id('copy').disabled=!anchor;
     console.log('show flip dialog');
-    id('copy').checked=false;
+    // id('copy').checked=false;
     showDialog('flipDialog',true);
 });
 id('flipOptions').addEventListener('click',function() {
     var opt=Math.floor((event.clientX-parseInt(id('flipDialog').offsetLeft)+5)/32);
     console.log('click on '+opt); // 0: horizontal; 1: vertical
-    var copy=id('copy').checked;
+    // var copy=id('copy').checked;
     var axis={};
     // var box=null;
     var elNodes=null;
@@ -660,7 +660,7 @@ id('flipOptions').addEventListener('click',function() {
         axis.y=parseInt(id('anchor').getAttribute('y'));
     }
     else { // flip in-situ around mid-point
-        copy=false;
+        // copy=false;
         axis.x=(minX+maxX)/2;
         axis.y=(minY+maxY)/2;
     }
@@ -674,7 +674,7 @@ id('flipOptions').addEventListener('click',function() {
             case 'line': // reverse x-coord of each point and each node
             case 'shape':
                 var points=el.points;
-                if(copy) var pts=''; // new points list as string
+                // if(copy) var pts=''; // new points list as string
                 for(i=0;i<points.length;i++) {
                     if(opt<1) {
                         dx=points[i].x-axis.x;
@@ -687,6 +687,7 @@ id('flipOptions').addEventListener('click',function() {
                         else points[i].y=axis.y-dy;
                     }
                 }
+                /* NO FLIP & COPY
                 console.log('pts: '+pts);
                 if(copy) {
                     console.log('create copy of element '+elID);
@@ -703,11 +704,13 @@ id('flipOptions').addEventListener('click',function() {
                     addGraph(g);
                 }
                 else {
-                    updateGraph(elID,['points',el.getAttribute('points')]);
-                    refreshNodes(el);
-                }
+                */
+                updateGraph(elID,['points',el.getAttribute('points')]);
+                refreshNodes(el);
+                // }
                 break;
             case 'box':
+            	/*
                 if(copy) {
                     var g={}; // new graph for copy/copies
                     g.type='box';
@@ -744,17 +747,20 @@ id('flipOptions').addEventListener('click',function() {
                         console.log('get failed');
                     }
                 }
-                else { // no action if flip in-situ unless has spin
-                    var spin=parseInt(el.getAttribute('spin'));
-                    if(spin!=0) {
+                else {
+                */
+                // no action if flip in-situ unless has spin
+                var spin=parseInt(el.getAttribute('spin'));
+                if(spin!=0) {
                         spin*=-1;
                         el.setAttribute('spin',spin);
                         setTransform(el);
                         updateGraph(elID['spin',spin]);
                     }
-                }
+                //}
                 break;
             case 'oval':
+                /*
                 if(copy) {
                     var g={};
                     g.type='oval';
@@ -785,19 +791,22 @@ id('flipOptions').addEventListener('click',function() {
                         console.log('get failed');
                     }
                 }
-                else { // no action if flip in-situ unless has spin
-                    var spin=parseInt(el.getAttribute('spin'));
-                    if(spin!=0) {
+                else {
+                */
+                // no action if flip in-situ unless has spin
+                var spin=parseInt(el.getAttribute('spin'));
+                if(spin!=0) {
                         spin*=-1;
                         el.setAttribute('spin',spin);
                         setTransform(el);
                         updateGraph(elID['spin',spin]);
                     }
-                }
+                //}
                 break;
             case 'arc':
                 var d=el.getAttribute('d');
                 getArc(d);
+                /*
                 if(copy) {
                     g={};
                     g.type='arc';
@@ -841,8 +850,10 @@ id('flipOptions').addEventListener('click',function() {
                         console.log('get failed');
                     }
                 }
-                else { // flip in-situ
-                    if(opt<1) { // flip left-right
+                else {
+                */
+                // flip in-situ
+                if(opt<1) { // flip left-right
                         dx=arc.cx-axis.x;
                         arc.cx=axis.x-dx;
                         dx=arc.x1-axis.x;
@@ -850,7 +861,7 @@ id('flipOptions').addEventListener('click',function() {
                         dx=arc.x2-axis.x;
                         arc.x2=axis.x-dx;
                     }
-                    else {
+                else {
                         dy=arc.cy-axis.y;
                         arc.cy=axis.y-dy;
                         dy=arc.y1-axis.y;
@@ -858,14 +869,15 @@ id('flipOptions').addEventListener('click',function() {
                         dy=arc.y2-axis.y;
                         arc.y2=axis.y-dy;
                     }
-                    arc.sweep=(arc.sweep<1)? 1:0;
-                    updateGraph(elID,['cx',arc.cx,'x1',arc.x1,'x2',arc.x2,'sweep',arc.sweep]);
-                    d="M"+arc.cx+","+arc.cy+" M"+arc.x1+","+arc.y1+" A"+arc.r+","+arc.r+" 0 "+arc.major+","+arc.sweep+" "+arc.x2+","+arc.y2;
-                    element.setAttribute('d',d);
-                    refreshNodes(el);
-                }
+                arc.sweep=(arc.sweep<1)? 1:0;
+                updateGraph(elID,['cx',arc.cx,'x1',arc.x1,'x2',arc.x2,'sweep',arc.sweep]);
+                d="M"+arc.cx+","+arc.cy+" M"+arc.x1+","+arc.y1+" A"+arc.r+","+arc.r+" 0 "+arc.major+","+arc.sweep+" "+arc.x2+","+arc.y2;
+                element.setAttribute('d',d);
+                refreshNodes(el);
+                //}
                 break;
             case 'text':
+            	/*
                 if(copy) {
                     var g={};
                     g.type='text';
@@ -897,26 +909,29 @@ id('flipOptions').addEventListener('click',function() {
                         console.log('get failed');
                     }
                 }
-                else { // flip in-situ
-                    showDialog('textDialog',false);
-                    var flip=parseInt(el.getAttribute('flip'));
-                    if(opt<1) { // flip left-right
+                else {
+                */
+                // flip in-situ
+                showDialog('textDialog',false);
+                var flip=parseInt(el.getAttribute('flip'));
+                if(opt<1) { // flip left-right
                         console.log('current flip: '+flip);
                         flip^=1; // toggle horizontal flip;
                         dx=parseInt(el.getAttribute('x'))-axis.x;
                         el.setAttribute('x',(axis.x-dx));
                     }
-                    else { // flip top-bottom
+                else { // flip top-bottom
                         flip^=2; // toggle vertical flip
                         dy=parseInt(el.getAttribute('y'))-axis.y;
                         el.setAttribute('y',(axis.y-dy));
                     }
-                    el.setAttribute('flip',flip);
-                    setTransform(el);
-                    updateGraph(elID,['flip',flip]);
-                }
+                el.setAttribute('flip',flip);
+                setTransform(el);
+                updateGraph(elID,['flip',flip]);
+                //}
                 break;
             case 'combi':
+                /*
                 if(copy) {
                     var g={};
                     g.type='combi';
@@ -944,33 +959,35 @@ id('flipOptions').addEventListener('click',function() {
                         console.log('get failed');
                     }
                 }
-                else { // flip in-situ
-                    var flip=parseInt(el.getAttribute('flip'));
-                    // console.log(elNodes.length+' nodes');
-                    if(opt<1) { // flip left-right
+                else {
+                */
+                // flip in-situ
+                var flip=parseInt(el.getAttribute('flip'));
+                // console.log(elNodes.length+' nodes');
+                if(opt<1) { // flip left-right
                         console.log('current flip: '+flip);
                         flip^=1; // toggle horizontal flip;
                         dx=parseInt(el.getAttribute('ax'))-axis.x;
                         el.setAttribute('ax',(axis.x-dx));
                     }
-                    else { // flip top-bottom
+                else { // flip top-bottom
                         flip^=2; // toggle vertical flip
                         dy=parseInt(el.getAttribute('ay'))-axis.y;
                         el.setAttribute('ay',(axis.y-dy));
                     }
-                    refreshNodes(el);
-                    w=parseInt(el.getAttribute('x'));
-                    h=parseInt(el.getAttribute('y'));
-                    // var s=parseInt(el.getAttribute('scale'));
-                    var hor=flip&1;
-                    var ver=flip&2;
-                    var t='translate('+(hor*w)+','+(ver*h/2)+') ';
-                    t+='scale('+((hor>0)? -1:1)+','+((ver>0)? -1:1)+')';
-                    // ADD rotate() FOR SPIN
-                    el.setAttribute('flip',flip);
-                    el.setAttribute('transform',t);
-                    updateGraph(elID,['flip',flip]);
-                }
+                refreshNodes(el);
+                w=parseInt(el.getAttribute('x'));
+                h=parseInt(el.getAttribute('y'));
+                // var s=parseInt(el.getAttribute('scale'));
+                var hor=flip&1;
+                var ver=flip&2;
+                var t='translate('+(hor*w)+','+(ver*h/2)+') ';
+                t+='scale('+((hor>0)? -1:1)+','+((ver>0)? -1:1)+')';
+                // ADD rotate() FOR SPIN
+                el.setAttribute('flip',flip);
+                el.setAttribute('transform',t);
+                updateGraph(elID,['flip',flip]);
+                //}
                 break;
         }
     }
@@ -1613,8 +1630,6 @@ id('line').addEventListener('click',function() {
 });
 id('lineType').addEventListener('change',function() {
     var type=event.target.value;
-    // console.log('line type: '+type);
-    // NEW CODE...
     if(selection.length>0) {
     	for (var i=0;i<selection.length;i++) {
     		console.log('change line width for selected element '+i);
@@ -1641,28 +1656,8 @@ id('lineType').addEventListener('change',function() {
         	updateGraph(el.id,['stroke',(type=='none')?'none':lineCol]);
     	}
     }
-    /* OLD CODE
-    if(elID) { // change selected element
-        element=id(elID);
-        w=parseInt(element.getAttribute('stroke-width'));
-        switch(type) {
-            case 'solid':
-                var val=null;
-                break;
-            case 'dashed':
-                val=(4*w)+' '+(4*w);
-                break;
-            case 'dotted':
-                val=w+' '+w;
-        }
-        console.log('set element '+element.id+' line style to '+type);
-        element.setAttribute('stroke-dasharray',val);
-        updateGraph(elID,['lineStyle',type]);
-    } 
-    */
     else { // change default line type
         lineType=type;
-        // console.log('line type is '+type);
     }
     id('line').style.borderBottomStyle=type;
 });

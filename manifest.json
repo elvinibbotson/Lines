@@ -1,7 +1,7 @@
 {
   "name": "Hockney PWA",
   "short_name": "Hockney",
-  "version": 3,
+  "version": "1.0",
   "icons": [
 	{
 		"src": "hockney512.png",
