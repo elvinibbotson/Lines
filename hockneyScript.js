@@ -1,9 +1,8 @@
 // GLOBAL VARIABLES
 var dbVersion=3;
-var size=null; // drawing size
-var aspect=null;
+var size=0; // drawing size default to A4
+var aspect='landscape'; // default orientation
 var scale=1; // default scale is 1:1
-var hand='left';
 var gridSize=300; // default grid size is 300mm
 var gridSnap=false; // grid snap off by default
 var scaleF=3.78; // default scale factor for mm (1:1 scale)
@@ -52,8 +51,8 @@ var blur=0;
 var textSize=5; // default text size
 var textStyle='fine'; // normal text
 var currentDialog=null;
-var zoomLimit=2; // controls minimum zoom - setting of 2 for minimum zoom of 1
-var sizes=['A4','A5','15x10cm','18x13cm','20x15cm','25x20cm'];
+var zoomLimit=1; // controls minimum zoom - setting of 2 for minimum zoom of 1
+var sizes=['A4','A5','21cm square','15x10cm','18x13cm','20x15cm','25x20cm'];
 var widths=[297,210,210,150,180,200,250.210,148,210,100,130,150,200];
 var heights=[210,148,210,100,130,150,200,297,210,210,150,180,200,250];
 
@@ -127,8 +126,14 @@ id('new').addEventListener('click',function() {
 });
 id('createNewDrawing').addEventListener('click',function() {
 	size=id('sizeSelect').value;
+	aspect=id('aspectSelect').value;
     scale=id('scaleSelect').value;
-    console.log('create new drawing - size:'+size+' aspect:'+aspect+' scale:'+scale);
+    console.log('create new drawing - size:'+size+'('+sizes[size]+') aspect:'+aspect+' scale:'+scale);
+    var index=parseInt(size);
+    if(aspect=='portrait') index+=7;
+    dwg.w=widths[index];
+    dwg.h=heights[index];
+    console.log('drawing size '+dwg.w+'x'+dwg.h+'(index: '+index+')');
     window.localStorage.setItem('size',size);
     window.localStorage.setItem('aspect',aspect);
     window.localStorage.setItem('scale',scale);
@@ -301,31 +306,31 @@ id('confirmPrint').addEventListener('click',function() {
     showDialog('printDialog',false);
 });
 id('zoomInButton').addEventListener('click',function() {
-    // prompt('ZOOM IN');
+    prompt('ZOOM IN');
     zoom*=2;
-    // console.log('zoom in to '+zoom);
+    console.log('zoom in to '+zoom);
     w=Math.round(dwg.w*scale/zoom);
     h=Math.round(dwg.h*scale/zoom);
-    // console.log('new viewBox: '+ +','+dwg.y+' '+w+'x'+h);
+    console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
     id('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     id('ref').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     snapD/=2; // avoid making snap too easy
     handleR/=2; // avoid oversizing edit handles
-    id('zoom').innerHTML=zoom;
+    // id('zoom').innerHTML=zoom;
 });
 id('zoomOutButton').addEventListener('click',function() {
-    // prompt('ZOOM OUT');
+    prompt('ZOOM OUT');
     if(zoom<zoomLimit) return;
     zoom/=2;
-    // console.log('zoom out to '+zoom);
+    console.log('zoom out to '+zoom);
     w=Math.round(dwg.w*scale/zoom);
     h=Math.round(dwg.h*scale/zoom);
-    // console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
+    console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
     id('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     id('ref').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     snapD*=2;
     handleR*=2;
-    id('zoom').innerHTML=zoom;
+    // id('zoom').innerHTML=zoom;
 });
 id('extentsButton').addEventListener('click',function() {
     prompt('ZOOM ALL');
@@ -3491,10 +3496,11 @@ function initialise() {
     handleR=2*scale;
     snapD=2*scale;
     console.log('scaleF: '+scaleF+' handleR=snapD='+snapD);
-    var index=size-1;
+    var index=parseInt(size);
     if(aspect=='portrait') index+=7;
     dwg.w=widths[index];
     dwg.h=heights[index];
+    console.log('drawing size '+dwg.w+'x'+dwg.h+'(index: '+index+')');
     var gridSizes=id('gridSize').options;
     console.log('set '+gridSizes.length+' grid size options for scale '+scale);
     gridSizes[0].disabled=(scale>2);
@@ -3510,6 +3516,7 @@ function initialise() {
     id('moveCircle').style.strokeWidth=scale;
     id('sizeDisc').setAttribute('r',handleR);
     id('selectionBox').setAttribute('stroke-dasharray',(scale+' '+scale+' '));
+    console.log('set drawings size to '+dwg.w+'x'+dwg.h);
     id('ref').setAttribute('width',(dwg.w+'mm'));
     id('ref').setAttribute('height',(dwg.h+'mm'));
     // id('background').setAttribute('width',dwg.w);
@@ -3535,7 +3542,7 @@ function initialise() {
     id('clipper').innerHTML=html;
     // console.log('drawing scale size: '+w+'x'+h+'mm; scaleF: '+scaleF+'; snapD: '+snapD);
     for(var i=0;i<10;i++) nodes.push({'x':0,'y':0,'n':i}); // 10 nodes for blueline
-    for(var i=0;i<10;i++) console.log('node '+i+': '+nodes[i].n+' at '+nodes[i].x+','+nodes[i].y);
+    // for(var i=0;i<10;i++) console.log('node '+i+': '+nodes[i].n+' at '+nodes[i].x+','+nodes[i].y);
     id('countH').value=id('countV').value=1;
     cancel(); // set select mode
     // report('screen size: '+scr.w+'x'+scr.h+' aspect: '+aspect+' drawing size: '+dwg.w+'x'+dwg.h+' scale: '+scale+' scaleF: '+scaleF);
