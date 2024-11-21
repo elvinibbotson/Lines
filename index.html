@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hockney - simple drawing app</title>
+    <meta name="description" content="scale drawings | simple CAD app | installable PWA">
+    <meta name="robots" content="index nofollow">
+    <meta name="keywords" content="CAD, drawing, design, scale drawing, building, PWA, app">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="theme-color" content="#333333">
+	<title>brunel</title>
+	<link rel="stylesheet" type="text/css" href="hockneyStyle.css">
+  	<link rel="manifest" href="manifest.json">
+  	<meta name="application-name" content="hockney">
+</head>
+<body>
+	<div id='prompt'></div>
+    <div id='graphic'>
+        <svg id='ref' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
+            <rect id='background' x='0' y='0' width='297' height='297' stroke='none' fill='white'/>
+        </svg>
+        <div id='drawing'>
+		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
+		    <defs>
+		        <marker id='startArrow' markerWidth='10' markerHeight='20' refX='0' refY='10' orient='auto'>
+		            <path d='M10,0 L0,10 L10,20' stroke='gray' fill='none'/>
+		        </marker>
+		        <marker id='endArrow' markerWidth='10' markerHeight='20' refX='10' refY='10' orient='auto'>
+		            <path d='M0,0 L10,10 L0,20' stroke='gray' fill='none'/>
+		        </marker>
+		        <marker id='dimStart' markerWidth='10' markerHeight='20' refX='0' refY='10' orient='auto'>
+		            <path d='M10,0 L0,10 L10,20' stroke='blue' fill='none'/>
+		        </marker>
+		        <marker id='dimEnd' markerWidth='10' markerHeight='20' refX='10' refY='10' orient='auto'>
+		            <path d='M0,0 L10,10 L0,20' stroke='blue' fill='none'/>
+		        </marker>
+		        <marker id='arcArrows' markerWidth='20' markerHeight='20' refX='20' refY='10' orient='auto'>
+		            <path d='M5,5 L10,0 L15,5' stroke='blue' fill='none'/>
+		            <path d='M5,15 L10,20 L15,15' stroke='blue' fill='none'/>
+		        </marker>
+		        <clipPath id='clipper'>
+		            <rect x='0' y='0' width='297' height='210'/>
+		        </clipPath>
+		        <g id='datum'>
+		            <polygon id='datumCross' points='-0.2,-0.2 -0.2,-80 0.2,-80 0.2,-0.2 80,-0.2 80,0.2 0.2,0.2 0.2,80 -0.2,80 -0.2,0.2 -80,0.2 -80,-0.2' stroke='none' fill='url(#fade)'/>
+		        </g>
+		        <g id='mover'>
+		            <circle id='moveCircle' cx='0' cy='0' r='1' stroke='blue' stroke-width='1' fill='#FFFFFF88'/>  
+		        </g>
+		        <g id='sizer'>
+		            <circle id='sizeDisc' cx='0' cy='0' r='1' stroke='none' fill='#0000FF88'/>
+		        </g>
+		        <radialGradient id="fade" r="50%" spreadMethod="pad">
+                    <stop offset='0%' stop-color='blue' stop-opacity="0.25"/>
+                    <stop offset='100%' stop-color='blue' stop-opacity="0"/>
+                </radialGradient>
+		        <g id='combis'></g>
+		    </defs>
+		    <g id='dwg' style="clip-path: url(#clipper);">
+		    </g>
+		    <g id='selection'></g>
+		    <g id='handles'></g>
+		    <g id='blue'>
+		        <g id='datumSet'>
+		            <use id='datum1' href='#datum' x='0' y='0'/>
+		            <use id='datum2' href='#datum' x='0' y='0'/>
+                </g>
+                <g id='guides'>
+                    <rect class='blue' id='selectionBox' x='0' y='0' width='0' height='0' stroke='blue' fill='none'/>
+                    <polyline class='blue' id='bluePolyline' points='0,0' stroke='blue' fill='none'/>
+		            <rect class='blue' id='blueBox' x='0' y='0' width='0' height='0' stroke='blue' fill='none'/>
+		            <ellipse class='blue' id='blueOval' cx='0' cy='0' rx='0' ry='0' stroke='blue' fill='none'/>
+		            <line class='blue' id='blueLine' x1='0' y1='0' x2='0' y2='0' stroke='blue' fill='none'/>
+		            <line class='blue' id='blueRadius' x1='0' y1='0' x2='-10' y2='-10' marker-end='url(#arcArrows)' stroke='blue' fill='none'/>
+		            <line class='blue' id='blueDim' x1='0' y1='0' x2='-10' y2='-10' marker-start='url(#dimStart)' marker-end='url(#dimEnd)' stroke='blue' stroke-width='0.25' fill='none'/>
+                </g>
+		        
+		    </g>
+		    </svg>
+		</div>
+	</div>
+    <div id='tools'>
+        <button id='docButton' class='iconButton'></button>
+        <button id='zoomInButton' class='iconButton'></button>
+        <button id='zoomOutButton' class='iconButton'></button>
+        <button id='extentsButton' class='iconButton'></button>
+        <button id='panButton' class='iconButton'></button>
+        <button id='sketchButton' class='iconButton'></button>
+        <button id='lineButton' class='iconButton'></button>
+        <button id='boxButton' class='iconButton'></button>
+        <button id='ovalButton' class='iconButton'></button>
+        <button id='arcButton' class='iconButton'></button>
+        <button id='textButton' class='iconButton'></button>
+        <button id='dimButton' class='iconButton'></button>
+        <button id='combiButton' class='iconButton'></button>
+    </div>
+    <div id='editTools'>
+        <button id='addButton' class='iconButton' disabled></button>
+        <button id='deleteButton' class='iconButton'></button>
+        <button id='forwardButton' class='iconButton'></button>
+        <button id='backButton' class='iconButton'></button>
+        <button id='moveButton' class='iconButton'></button>
+        <button id='spinButton' class='iconButton'></button>
+        <button id='flipButton' class='iconButton'></button>
+        <button id='alignButton' class='iconButton'></button>
+        <button id='copyButton' class='iconButton'></button>
+        <button id='doubleButton' class='iconButton'></button>
+        <button id='repeatButton' class='iconButton'></button>
+        <button id='filletButton' class='iconButton'></button>
+        <button id='anchorButton' class='iconButton'></button>
+        <button id='combineButton' class='iconButton'></button>
+    </div>
+    <div id='sizes'>
+        <input id='first' type='number'/> <span id='between'>x</span>
+        <input id='second' type='number'/><span id='after'>mm</span>
+        <input id='spin' type='number'/>&deg;
+    </div>
+    <div id='checks'></div>
+    <div id='fill'></div>
+    <div id='line'></div>
+    <button id='undoButton' class='iconButton'></button>
+    <div id='docDialog' class='dialog'>
+        <p>DRAWING: <span id='drawingName'></span></p>
+        <p><span id='drawingSize'></span> | <span id='drawingAspect'></span> | 1:<span id='drawingScale'></span></p>
+        <p>grid<input type='checkbox' id='gridSnap'>size: <select id='gridSize'>
+            <option value=5>5mm</option>
+            <option vlaue=10>10mm</option>
+            <option value=25>25mm</option>
+            <option value=50>50mm</option>
+            <option value=100>100mm</option>
+            <option value=300>300mm</option>
+            <option value=500>500mm</option>
+            <option value=600>600mm</option>
+            <option value=900>900mm</option>
+            <option value=1000>1m</option>
+        </select>
+        </p>
+        <p><button id='new'>NEW</button> <button id='load'>LOAD</button> <button id='save'>SAVE</button> <button id='print'>PRINT</button></p>
+    </div>
+    <div id='newDrawingDialog' class='dialog'>
+        <p><button id='createNewDrawing'>NEW DRAWING</button></p>
+        <p>size:
+        <select id='sizeSelect'>
+            <option value=0>A4 (297x210mm)</option>
+            <option value=1>A5 (210x148mm)</option>
+            <option value=2>21cm square</option>
+            <option value=3>15x10cm</option>
+            <option value=4>18x13cm</option>
+            <option value=5>20x15cm</option>
+            <option value=6>25x20cm</option>
+        </select>
+        </p>
+        <p>orientation:
+        <select id='aspectSelect'>
+        	<option value='landscape'>landscape</option>
+        	<option value='portrait'>portrait</option>
+        </select>
+        </p>
+        <p>scale:
+        <select id='scaleSelect'>
+            <option value='1'>1:1</option>
+            <option value='2'>1:2</option>
+            <option value='5'>1:5</option>
+            <option value='10'>1:10</option>
+            <option value='20'>1:20</option>
+            <option value='50'>1:50</option>
+            <option value='100'>1:100</option>
+        </select>
+    </div>
+    <div id='loadDialog' class='dialog'>
+        <p>LOAD</p>
+        <p>
+        <input type='radio' name='loadMethod' id='replace' checked>
+        <label for='replace'>replace</label><br>
+        <input type='radio' name='loadMethod' id='merge'>
+        <label for='merge'>merge</label><br>
+        <input type='radio' name='loadMethod' id='reference'>
+        <label for='reference'>reference</label><br>
+        <input type='radio' name='loadMethod' id='combi'>
+        <label for='combi'>combi</label>
+        </p>
+        <p><input type="file" id="fileChooser" class='nameField'>
+        </p>
+    </div>
+    <div id='saveDialog' class='dialog'>
+        <p><button id='confirmSave'>SAVE</button></p>
+        <p>as <input type='text' id='saveName' class='nameField'/>.json</p>
+        <p>The file will appear in your downloads folder</p>
+    </div>
+    <div id='printDialog' class='dialog'>
+	    <p><button id='confirmPrint'>SAVE</button> as printable SVG file</p>
+		<p>file name <input type='text' id='printName' class='nameField'>.svg</p>
+		<p>The saved <i>scalable vector graphics</i> file<br>will appear in your downloads folder.</p>
+	</div>
+    <div id='dimDialog' class='dialog'>
+        <p><button id='confirmDim'>DIMENSION</button></p>
+        <input type='radio' name='dimDir' id='horizontal' value='h'>
+        <label for='horizontal'>horizontal</label><br>
+        <input type='radio' name='dimDir' id='vertical' value='v'>
+        <label for='vertical'>vertical</label><br>
+        <input type='radio' name='dimDir' id='oblique' value='o' checked>
+        <label for='oblique'>oblique</label>
+    </div>
+    <div id='combiDialog' class='dialog'>
+        <p>select a combi</p>
+        <p><select id='combiList'>
+            <option onclick='prompt("select a combi");' value=null>select a combi</option>
+        </select></p>
+    </div>
+    <div id='stylesDialog' class='dialog'>
+        <p>line 
+        <select id='lineType'>
+            <option value='solid' selected>solid</option>
+            <option value='dashed'>dashed</option>
+            <option value='dotted'>dotted</option>
+        </select>
+        <select id='penSelect'>
+            <option value='0.25' selected>0.25mm</option>
+            <option value='0.5'>0.5mm</option>
+            <option value='1.0'>1.0mm</option>
+            <option value='2.0'>2.0mm</option>
+        </select></p>
+        <p>text <select id='textSize'>
+            <option value=3.5>7pt</option>
+            <option value=5 selected>10pt</option>
+            <option value=7>14pt</option>
+            <option value=10>20pt</option>
+            <option value=14>28pt</option>
+        </select>
+        <select id='textStyle'>
+            <option value='fine' selected>fine</option>
+            <option value='bold'>bold</option>
+            <option value='italic'>italic</option>
+        </select> <img id='lineColor'/></p>
+        <p>fill  
+        <img id='fillColor'/>
+        <select id='opacity'>
+            <option value=1 selected>100%</option>
+            <option value=0.5>50%</option>
+            <option value=0.25>25%</option>
+            <option value=0>none</option>
+        </select> opacity</p>
+        <select id='blur'>
+        	<option value=0 selected>none</option>
+        	<option value=1>20%</option>
+        	<option value=2>40%</option>
+        	<option value=3>60%</option>
+        	<option value=4>80%</option>
+        </select> blur
+    </div>
+    <div id='removeDialog' class='dialog'>
+        <p><button id='confirmRemove'>REMOVE</button></p>
+        <p>selected element(s)?</p>
+    </div>
+    <div id='moveDialog' class='dialog'>
+        <p><button id='confirmMove'>MOVE</button></p>
+        <p><input type='number' id='moveRight'/><img src='svg/up.svg' class='spin90'/>
+        <input type='number' id='moveDown'/><img src='svg/up.svg' class='spin180'/></p>
+        <p>...or <input type='number' id='moveDist'/> @ <input type='number' id='moveAngle'/> &deg;</p>
+    </div>
+    <div id='spinDialog' class='dialog'>
+        <p><button id='confirmSpin'>SPIN</button></p>
+        <p>clockwise <input type='number' id='spinAngle'/>&deg;</p>
+    </div>
+    <div id='flipDialog' class='dialog'>
+        <p><b>FLIP</b></p>
+        <label for='copy' id='copyLabel'>copy</label><input type='checkbox' id='copy'/>
+        <div id='flipOptions'>
+            <img src='svg/flip.svg'/><img src='svg/flip.svg' class='spin90'/>   
+        </div>
+    </div>
+    <div id='alignDialog' class='dialog'>
+        <p>ALIGN</p>
+        <div id='alignOptions'>
+            <img src='svg/align.svg'/><img src='svg/centre.svg'/><img src='svg/align.svg' class='spin180'/><br>
+            <img src='svg/align.svg' class='spin90'/><img src='svg/centre.svg' class='spin90'/><img src='svg/align.svg' class='spin270'/>
+        </div>
+    </div>
+    <div id='doubleDialog' class='dialog'>
+        <p><button id='confirmDouble'>DOUBLE</button></p>
+        <p><input type='number' id='offset'/>mm right/outside
+        <p>negative offsets are left/inside</p>
+    </div>
+    <div id='repeatDialog' class='dialog'>
+        <p><button id='confirmRepeat'>REPEAT</button></p>
+        <p><input type='number' id='countH'/>@<input type='number' id='distH'/>mm<img src='svg/up.svg' class='spin90'/></p>
+        <p><input type='number' id='countV'/>@<input type='number' id='distV'/>mm<img src='svg/up.svg' class='spin180'/></p>
+    </div>
+    <div id='filletDialog' class='dialog'>
+        <p><button id='confirmFillet'>FILLET</button></p>
+        <p>radius:<input type='number' id='filletR'/>mm</p>
+    </div>
+    <div id='combineDialog' class='dialog'>
+        <p><button id='confirmCombine'>COMBINE</button></p>
+        <!--p>scale? <input type='checkbox' id='combiScale'/></p-->
+        <p>name: <input type='text' id='combiName'/>.json</p>
+    </div>
+    <!--div id='shadeMenu'>
+        <svg width='96' height='24'>
+            <rect id='blueWhite' x='0' y='0' width='24' height='24' stroke='none' fill='whiter'/>
+            <rect x='24' y='0' width='24' height='24' stroke='none' fill='silver'/>
+            <rect x='48' y='0' width='24' height='24' stroke='none' fill='gray'/>
+            <rect x='72' y='0' width='24' height='24' stroke='none' fill='black'/>
+        </svg>
+    </div-->
+    <div id='colorPicker' class='dialog'>
+    	<svg width='450' height='175'>
+    		<rect id='#000' x='175' y='0' width='25' height='25' stroke='none' fill='#000'/>
+    		<rect id='#555' x='200' y='0' width='25' height='25' stroke='none' fill='#555'/>
+    		<rect id='#AAA' x='225' y='0' width='25' height='25' stroke='none' fill='#AAA'/>
+    		<rect id='#FFF' x='250' y='0' width='25' height='25' stroke='#AAA' fill='#FFF'/>
+    		<rect id='#A55' x='150' y='25' width='25' height='25' stroke='none' fill='#A55'/>
+    		<rect id='#AA5' x='175' y='25' width='25' height='25' stroke='none' fill='#AA5'/>
+    		<rect id='#5A5' x='200' y='25' width='25' height='25' stroke='none' fill='#5A5'/>
+    		<rect id='#5AA' x='225' y='25' width='25' height='25' stroke='none' fill='#5AA'/>
+    		<rect id='#55A' x='250' y='25' width='25' height='25' stroke='none' fill='#55A'/>
+    		<rect id='#A5A' x='275' y='25' width='25' height='25' stroke='none' fill='#A5A'/>
+    		<rect id='#FAA' x='150' y='50' width='25' height='25' stroke='none' fill='#FAA'/>
+    		<rect id='#FFA' x='175' y='50' width='25' height='25' stroke='none' fill='#FFA'/>
+    		<rect id='#AFA' x='200' y='50' width='25' height='25' stroke='none' fill='#AFA'/>
+    		<rect id='#AFF' x='225' y='50' width='25' height='25' stroke='none' fill='#AFF'/>
+    		<rect id='#AAF' x='250' y='50' width='25' height='25' stroke='none' fill='#AAF'/>
+    		<rect id='#FAF' x='275' y='50' width='25' height='25' stroke='none' fill='#FAF'/>
+    		<rect id='#F55' x='75' y='75' width='25' height='25' stroke='none' fill='#F55'/>
+    		<rect id='#FA5' x='100' y='75' width='25' height='25' stroke='none' fill='#FA5'/>
+    		<rect id='#FF5' x='125' y='75' width='25' height='25' stroke='none' fill='#FF5'/>
+    		<rect id='#AF5' x='150' y='75' width='25' height='25' stroke='none' fill='#AF5'/>
+    		<rect id='#5F5' x='175' y='75' width='25' height='25' stroke='none' fill='#5F5'/>
+    		<rect id='#5FA' x='200' y='75' width='25' height='25' stroke='none' fill='#5FA'/>
+    		<rect id='#5FF' x='225' y='75' width='25' height='25' stroke='none' fill='#5FF'/>
+    		<rect id='#5AF' x='250' y='75' width='25' height='25' stroke='none' fill='#5AF'/>
+    		<rect id='#55F' x='275' y='75' width='25' height='25' stroke='none' fill='#55F'/>
+    		<rect id='#A5F' x='300' y='75' width='25' height='25' stroke='none' fill='#A5F'/>
+    		<rect id='#F5F' x='325' y='75' width='25' height='25' stroke='none' fill='#F5F'/>
+    		<rect id='#F5A' x='350' y='75' width='25' height='25' stroke='none' fill='#F5A'/>
+    		<rect id='#F00' x='0' y='100' width='25' height='25' stroke='none' fill='#F00'/>
+    		<rect id='#F50' x='25' y='100' width='25' height='25' stroke='none' fill='#F50'/>
+    		<rect id='#FA0' x='50' y='100' width='25' height='25' stroke='none' fill='#FA0'/>
+    		<rect id='#FF0' x='75' y='100' width='25' height='25' stroke='none' fill='#FF0'/>
+    		<rect id='#AF0' x='100' y='100' width='25' height='25' stroke='none' fill='#AF0'/>
+    		<rect id='#5F0' x='125' y='100' width='25' height='25' stroke='none' fill='#5F0'/>
+    		<rect id='#0F0' x='150' y='100' width='25' height='25' stroke='none' fill='#0F0'/>
+    		<rect id='#0F5' x='175' y='100' width='25' height='25' stroke='none' fill='#0F5'/>
+    		<rect id='#0FA' x='200' y='100' width='25' height='25' stroke='none' fill='#0FA'/>
+    		<rect id='#0FF' x='225' y='100' width='25' height='25' stroke='none' fill='#0FF'/>
+    		<rect id='#0AF' x='250' y='100' width='25' height='25' stroke='none' fill='#0AF'/>
+    		<rect id='#05F' x='275' y='100' width='25' height='25' stroke='none' fill='#05F'/>
+    		<rect id='#00F' x='300' y='100' width='25' height='25' stroke='none' fill='#00F'/>
+    		<rect id='#50F' x='325' y='100' width='25' height='25' stroke='none' fill='#50F'/>
+    		<rect id='#A0F' x='350' y='100' width='25' height='25' stroke='none' fill='#A0F'/>
+    		<rect id='#F0F' x='375' y='100' width='25' height='25' stroke='none' fill='#F0F'/>
+    		<rect id='#F0A' x='400' y='100' width='25' height='25' stroke='none' fill='#F0A'/>
+    		<rect id='#F0F' x='425' y='100' width='25' height='25' stroke='none' fill='#F0F'/>
+    		<rect id='#A00' x='75' y='125' width='25' height='25' stroke='none' fill='#A00'/>
+    		<rect id='#A50' x='100' y='125' width='25' height='25' stroke='none' fill='#A50'/>
+    		<rect id='#AA0' x='125' y='125' width='25' height='25' stroke='none' fill='#AA0'/>
+    		<rect id='#5A0' x='150' y='125' width='25' height='25' stroke='none' fill='#5A0'/>
+    		<rect id='#0A0' x='175' y='125' width='25' height='25' stroke='none' fill='#0A0'/>
+    		<rect id='#0A5' x='200' y='125' width='25' height='25' stroke='none' fill='#0A5'/>
+    		<rect id='#0AA' x='225' y='125' width='25' height='25' stroke='none' fill='#0AA'/>
+    		<rect id='#05A' x='250' y='125' width='25' height='25' stroke='none' fill='#05A'/>
+    		<rect id='#00A' x='275' y='125' width='25' height='25' stroke='none' fill='#00A'/>
+    		<rect id='#50A' x='300' y='125' width='25' height='25' stroke='none' fill='#50A'/>
+    		<rect id='#A0A' x='325' y='125' width='25' height='25' stroke='none' fill='#A0A'/>
+    		<rect id='#A05' x='350' y='125' width='25' height='25' stroke='none' fill='#A05'/>
+    		<rect id='#500' x='150' y='150' width='25' height='25' stroke='none' fill='#500'/>
+    		<rect id='#550' x='175' y='150' width='25' height='25' stroke='none' fill='#550'/>
+    		<rect id='#050' x='200' y='150' width='25' height='25' stroke='none' fill='#050'/>
+    		<rect id='#055' x='225' y='150' width='25' height='25' stroke='none' fill='#055'/>
+    		<rect id='#005' x='250' y='150' width='25' height='25' stroke='none' fill='#005'/>
+    		<rect id='#505' x='275' y='150' width='25' height='25' stroke='none' fill='#505'/>
+    	</svg>
+    </div>
+    <div id='textDialog' class='dialog'>
+        text: <input id='text' type='text' size='50'/>
+    </div>
+	<script src="hockneyScript.js" async></script>
+</body>
+</html>
