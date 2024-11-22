@@ -219,35 +219,54 @@
             <option value='0.5'>0.5mm</option>
             <option value='1.0'>1.0mm</option>
             <option value='2.0'>2.0mm</option>
-        </select></p>
-        <p>text <select id='textSize'>
+        </select>
+        </p>
+        <p>text 
+        <select id='textSize'>
             <option value=3.5>7pt</option>
             <option value=5 selected>10pt</option>
             <option value=7>14pt</option>
             <option value=10>20pt</option>
             <option value=14>28pt</option>
         </select>
-        <select id='textStyle'>
+        <select id='textFont'>
+            <option value='sans'>sans</option>
+            <option value='serif'>serif</option>
+            <option value='mono'>mono</option>
+            <option value='cursive'>cursive</option>
+        </select>
+         <select id='textStyle'>
             <option value='fine' selected>fine</option>
             <option value='bold'>bold</option>
             <option value='italic'>italic</option>
-        </select> <img id='lineColor'/></p>
-        <p>fill  
+        </select>
+        <img id='lineColor'/>
+        </p>
+        <p>fill 
+        <select id='fillType'>
+            <option value='none'>none</option>
+            <option value='solid' selected>solid</option>
+            <option id='patternOption' value='pattern'>pattern</option>
+        </select>
         <img id='fillColor'/>
+        </p>
+        <p>opacity 
         <select id='opacity'>
             <option value=1 selected>100%</option>
             <option value=0.5>50%</option>
             <option value=0.25>25%</option>
             <option value=0>none</option>
-        </select> opacity</p>
+        </select>
+         blur 
         <select id='blur'>
         	<option value=0 selected>none</option>
-        	<option value=1>20%</option>
-        	<option value=2>40%</option>
-        	<option value=3>60%</option>
-        	<option value=4>80%</option>
-        </select> blur
+        	<option value=1>25%</option>
+        	<option value=2>50%</option>
+        	<option value=3>75%</option>
+        </select>
+        </p>
     </div>
+    <div id='patternMenu' class='dialog'></div>
     <div id='removeDialog' class='dialog'>
         <button id='confirmRemove'>REMOVE</button>
         <p>selected element(s)?</p>

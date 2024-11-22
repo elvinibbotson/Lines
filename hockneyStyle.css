@@ -17,6 +17,7 @@ input [type='checkbox'] {
 }
 img {
     vertical-align: bottom;
+    border: 1px solid gray;
 }
 select {
     color: black;
