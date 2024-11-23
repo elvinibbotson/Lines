@@ -191,6 +191,8 @@ id('fileChooser').addEventListener('change',function() {
 		    nodes=[];
 		    dims=[];
 		    // window.localStorage.setItem('order','');
+		    size=json.size;
+		    window.localStorage.setItem('size',size);
 		    aspect=json.aspect;
 		    window.localStorage.setItem('aspect',aspect);
 		    scale=json.scale;
@@ -251,6 +253,7 @@ id('confirmSave').addEventListener('click',function() {
     fileName=name+".json";
     window.localStorage.setItem('name',name);
     var data={};
+    data.size=size;
     data.aspect=aspect;
     data.scale=scale;
     data.graphs=[];
@@ -2542,20 +2545,42 @@ id('graphic').addEventListener('pointerup',function() {
     console.log('snap - x:'+snap.x+' y:'+snap.y+' n:'+snap.n);
     if(mode.startsWith('movePoint')) { // move polyline/polygon point
         id('handles').innerHTML='';
-        // var n=parseInt(mode.substr(9));
-        console.log('move point '+node);
-        element.points[node].x=x;
-        element.points[node].y=y;
-        if((Math.abs(x-x0)<snapD)&&(Math.abs(y-y0)<snapD)) { // no drag - swop to mover
+        console.log('move point '+node+' on '+type(element));
+        if(type(element)=='sketch') {
+            var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
+	        var request=graphs.get(Number(element.id));
+	        request.onsuccess=function(event) {
+	            var graph=request.result;
+	            console.log('got graph '+graph.id);
+	            graph.points[node].x=x;
+	            graph.points[node].y=y;
+	            request=graphs.put(graph);
+	            request.onsuccess=function(event) {
+			        console.log('graph '+graph.id+' updated');
+			        var d=sketchPath(graph.points);
+			        console.log('new path: '+d);
+			        id(graph.id).setAttribute('d',sketchPath(graph.points)); // redraw sketch element path
+		        };
+	            request.onerror=function(event) {
+		            console.log("PUT ERROR updating graph "+graph.id);
+		        }
+	        }
+	    }
+        else {
+        	console.log('move point '+node);
+        	element.points[node].x=x;
+        	element.points[node].y=y;
+        	if((Math.abs(x-x0)<snapD)&&(Math.abs(y-y0)<snapD)) { // no drag - swop to mover
             console.log('TAP - add mover at node '+node); // node becomes new element 'anchor'
             var html="<use id='mover"+node+"' href='#mover' x='"+x+"' y='"+y+"'/>";
             id('handles').innerHTML=html;
             mode='edit';
             return;
         }
-        updateGraph(elID,['points',element.getAttribute('points')]);
-        id('bluePolyline').setAttribute('points','0,0');
-        refreshNodes(element);
+        	updateGraph(elID,['points',element.getAttribute('points')]);
+        	id('bluePolyline').setAttribute('points','0,0');
+        	refreshNodes(element);
+        }
         cancel();
     }
     else switch(mode) {
@@ -2804,6 +2829,7 @@ id('graphic').addEventListener('pointerup',function() {
 	                graph.stroke=lineColor;
 	                graph.lineW=(pen*scale);
 	                graph.lineStyle=lineType;
+	                graph.fillType=fillType;
 	                graph.fill=fillColor;
 	                if(len>=scale) addGraph(graph); // avoid zero-size shapes
 	                blueline.setAttribute('points','0,0');
@@ -3446,7 +3472,7 @@ id('undoButton').addEventListener('click',function() {
 // UTILITY FUNCTIONS
 function addGraph(el) {
     console.log('add '+el.type+' element - spin: '+el.spin);
-    console.log('fill: '+el.fillType+', '+el.fillColor);
+    console.log('fill: '+el.fillType+', '+el.fill);
     var request=db.transaction('graphs','readwrite').objectStore('graphs').add(el);
     request.onsuccess=function(event) {
         console.log('result: '+event.target.result);
@@ -3656,6 +3682,16 @@ function makeElement(g) {
     console.log('make '+g.type+' element '+g.id);
     var ns=id('svg').namespaceURI;
     switch(g.type) {
+    	case 'sketch':
+            var el=document.createElementNS(ns,'path');
+            el.setAttribute('id',g.id);
+            console.log('points: '+g.points);
+            el.setAttribute('points',g.points);
+            el.setAttribute('d',sketchPath(g.points));
+            el.setAttribute('spin',g.spin);
+            if(g.spin!=0) setTransform(el); // apply spin MAY NOT WORK!!!
+            nodes.push({'x':g.points[0].x,'y':g.points[0].y,'n':Number(g.id*10+0)});
+            break;
         case 'line':
             var el=document.createElementNS(ns,'polyline');
             el.setAttribute('id',g.id);
@@ -3665,6 +3701,7 @@ function makeElement(g) {
             el.setAttribute('stroke-width',g.lineW);
             var dash=setLineStyle(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
+            el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             // el.setAttribute('fill','none');
@@ -3684,6 +3721,7 @@ function makeElement(g) {
             el.setAttribute('stroke-width',g.lineW);
             var dash=setLineStyle(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
+            el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             // el.setAttribute('fill',g.fill);
@@ -3708,6 +3746,7 @@ function makeElement(g) {
             el.setAttribute('stroke-width',g.lineW);
             var dash=setLineStyle(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
+            el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             console.log('made box'); // ADD NODES
@@ -3730,6 +3769,7 @@ function makeElement(g) {
             el.setAttribute('stroke-width',g.lineW);
             var dash=setLineStyle(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
+            el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             console.log('made oval'); // ADD NODES
@@ -3752,6 +3792,7 @@ function makeElement(g) {
             el.setAttribute('stroke-width',g.lineW);
             var dash=setLineStyle(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
+            el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             // create nodes for arc start, centre & end points USE refreshNodes()? AND ALLOW FOR SPIN
@@ -3854,6 +3895,7 @@ function makeElement(g) {
             break;
     }
     if((g.type!='text')&&(g.type!='stamp')) { // set style
+    	console.log('set style - fillType is '+g.fillType+'; fill is '+g.fill);
     	el.setAttribute('stroke',g.stroke);
 		el.setAttribute('stroke-width',g.lineW);
 		var dash=setLineStyle(g);
@@ -3881,6 +3923,27 @@ function makeElement(g) {
 }
 function move(el,dx,dy) {
     switch(type(el)) {
+    	case 'sketch':
+            console.log('move all points by '+dx+','+dy);
+            var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
+	        var request=graphs.get(Number(el.id));
+	        request.onsuccess=function(event) {
+	            var graph=request.result;
+	            console.log('got graph '+graph.id);
+	            for(var i=0;i<graph.points.length;i++) {
+	                graph.points[i].x+=dx;
+	                graph.points[i].y+=dy;
+	            }
+	            request=graphs.put(graph);
+	            request.onsuccess=function(event) {
+			        console.log('graph '+el.id+' updated - starts at '+graph.points[0].x+','+graph.points[0].y);
+			        el.setAttribute('d',sketchPath(graph.points)); // redraw sketch element path
+		        };
+		        request.onerror=function(event) {
+		            console.log("PUT ERROR updating graph "+id);
+		        };
+	        }
+            break;
         case 'line':
         case 'shape':
             console.log('move all points by '+dx+','+dy);
@@ -4663,6 +4726,38 @@ function showEditTools(visible) {
 function showSizes(visible,promptText) {
     id('sizes').style.display=(visible)?'block':'none';
     if(visible && promptText) prompt(promptText);
+}
+function sketchPath(pts) {
+	console.log('get path for points: '+pts);
+	var d='M'+pts[0].x+','+pts[0].y; // move to point 0
+	if(pts.length<3) d+=' L'+pts[1].x+','+pts[1].y; // 2 points - short straight line
+	else {
+	    var n=7; // vary n to adjust smoothness of curve - 7 seems a good compromise
+	    var c1={}; // control points
+	    var c2={};
+	    dx=pts[2].x-pts[0].x; // position control points parallel to chord of flanking points
+	    dy=pts[2].y-pts[0].y; // this is for point 1
+	    c2.x=pts[1].x-dx/n; // first control point
+	    c2.y=pts[1].y-dy/n;
+	    d+=' Q'+c2.x+','+c2.y+' '+pts[1].x+','+pts[1].y; // first segment - quadratic curve
+	    // console.log('point 1 path: '+d);
+	    var i=2;
+	    while(i<pts.length-1) { // intermediate segments
+	        c1.x=pts[i-1].x+dx/n; // reflect previous control point
+	        c1.y=pts[i-1].y+dy/n;
+	        dx=pts[i+1].x-pts[i-1].x;
+	        dy=pts[i+1].y-pts[i-1].y;
+	        c2.x=pts[i].x-dx/n; // next control point
+	        c2.y=pts[i].y-dy/n;
+	        d+=' C'+c1.x+','+c1.y+' '+c2.x+','+c2.y+' '+pts[i].x+','+pts[i].y; // cubic curves
+	        // console.log('point '+i+': '+d);
+	        i++
+	    }
+	    c1.x=pts[i-1].x+dx/n;
+	    c1.y=pts[i-1].y+dy/n;
+	    d+=' S'+c1.x+','+c1.y+' '+pts[i].x+','+pts[i].y; // final segment - smooth cubic curve
+	}
+	return d;
 }
 function snapCheck() {
     var near=nodes.filter(function(node) {
