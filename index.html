@@ -14,13 +14,28 @@
 </head>
 <body>
 	<div id='prompt'></div>
-    <div id='graphic'>
+    <div id='graphic' draggable='false'>
         <svg id='ref' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
             <rect id='background' x='0' y='0' width='297' height='297' stroke='none' fill='white'/>
         </svg>
         <div id='drawing'>
 		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
 		    <defs>
+		    	<filter id='blur1' x='-10' y='-10' width='297' height='210'>
+		            <feGaussianBlur in='SourceGraphic' stdDeviation='1'/>
+		        </filter>
+		        <filter id='blur2' x='-10' y='-10' width='297' height='210'>
+		            <feGaussianBlur in='SourceGraphic' stdDeviation='2'/>
+		        </filter>
+		        <filter id='blur3' x='-10' y='-10' width='297' height='210'>
+		            <feGaussianBlur in='SourceGraphic' stdDeviation='3'/>
+		        </filter>
+		        <filter id='blur4' x='-10' y='-10' width='297' height='210'>
+		            <feGaussianBlur in='SourceGraphic' stdDeviation='4'/>
+		        </filter>
+		        <filter id='blur5' x='-10' y='-10' width='297' height='210'>
+		            <feGaussianBlur in='SourceGraphic' stdDeviation='5'/>
+		        </filter>
 		        <marker id='startArrow' markerWidth='10' markerHeight='20' refX='0' refY='10' orient='auto'>
 		            <path d='M10,0 L0,10 L10,20' stroke='gray' fill='none'/>
 		        </marker>
@@ -253,9 +268,9 @@
         <p>opacity 
         <select id='opacity'>
             <option value=1 selected>100%</option>
+            <option value=0.75>75%</option>
             <option value=0.5>50%</option>
             <option value=0.25>25%</option>
-            <option value=0>none</option>
         </select>
          blur 
         <select id='blur'>

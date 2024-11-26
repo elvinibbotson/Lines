@@ -50,6 +50,7 @@ var fillColor='white';
 var opacity='1';
 var blur=0;
 var textSize=5; // default text size
+var textFont='sans'; // sans-serif font
 var textStyle='fine'; // normal text
 var currentDialog=null;
 var zoomLimit=1; // controls minimum zoom - setting of 2 for minimum zoom of 1
@@ -76,16 +77,9 @@ gridSize=window.localStorage.getItem('gridSize');
 gridSnap=window.localStorage.getItem('gridSnap');
 if(name===null) name='unnamed';
 if(size===null) size=0;
-// if(aspect===null) aspect='landscape';
 if(scale===null) scale=1;
 if(!gridSize) gridSize=300;
 if(!gridSnap) gridSnap=0;
-/*
-id('drawingName').innerHTML=name;
-id('drawingScale').innerHTML=scale;
-id('drawingAspect').innerHTML=aspect;
-id('gridSize').value=gridSize;
-*/
 console.log('grid checked: '+id('gridSnap').checked);
 console.log('name: '+name+'; aspect: '+aspect+'; scale: '+scale+'; grid: '+gridSize+' '+gridSnap);
 if(!aspect) {
@@ -374,7 +368,6 @@ id('arcButton').addEventListener('click', function() {
 });
 id('textButton').addEventListener('click',function() {
     mode='text';
-    // id('tools').style.display='none';
     prompt('TEXT: tap at start');
 });
 id('text').addEventListener('change',function() {
@@ -394,7 +387,9 @@ id('text').addEventListener('change',function() {
         graph.spin=0;
         graph.flip=0;
         graph.textSize=textSize;
+        graph.textFont=textFont;
         graph.textStyle=textStyle;
+        graph.fillType='solid';
 	    graph.fill=lineColor;
 	    graph.opacity=opacity;
 	    addGraph(graph);
@@ -491,8 +486,7 @@ id('backButton').addEventListener('click',function() {
     else prompt('PUSH BACK');
     var previousID=previousElement.getAttribute('id');
     id('dwg').insertBefore(element,previousElement); // move back in drawing...
-    swopGraphs(previousID,elID); // ...and in database
-    // drawOrder(); // update drawing order
+    swopGraphs(previousID,element.id); // ...and in database
 });
 id('forwardButton').addEventListener('click',function() {
     var nextElement=element.nextSibling;
@@ -503,7 +497,7 @@ id('forwardButton').addEventListener('click',function() {
     else prompt('PULL FORWARD');
     var nextID=nextElement.getAttribute('id');
     id('dwg').insertBefore(nextElement,element); // bring forward in drawing.
-    swopGraphs(elID,nextID); // ...and in database
+    swopGraphs(element.id,nextID); // ...and in database
     // drawOrder(); // update drawing order
 });
 id('moveButton').addEventListener('click',function() {
@@ -1443,7 +1437,6 @@ id('confirmDouble').addEventListener('click',function() {
 });
 id('repeatButton').addEventListener('click',function() {
     if(type(element)=='dim') return; // cannot move dimensions
-    if(selection.length!=1) return; // can only repeat single elements
     showDialog('textDialog',false);
     id('countH').value=id('countV').value=1;
     id('distH').value=id('distV').value=0;
@@ -1454,88 +1447,88 @@ id('confirmRepeat').addEventListener('click',function() {
     var nV=parseInt(id('countV').value);
     var dH=parseInt(id('distH').value);
     var dV=parseInt(id('distV').value);
-    console.log('repeat '+type(element));
-    console.log(nH+' copies across at '+dH+'mm; '+nV+' copies down at '+dV+'mm');
-    // element=id(elID);
-    console.log(element.type+' stroke: '+element.stroke);
-    for(var i=0;i<nH;i++) {
-        for(var j=0;j<nV;j++) {
-            if(i<1 && j<1) continue; // skip in-place duplicate
-            var g={};
-            g.type=type(element);
-            if(g.type!='combi') { // combis don't have style
-                g.stroke=element.getAttribute('stroke');
-                g.lineW=element.getAttribute('stroke-width');
-                g.lineStyle=getLineStyle(element);
-                g.fill=element.getAttribute('fill');
-                 if(val.startsWith('url')) {
-                	var p=id('pattern'+element.id);
-                	g.fillType='pattern'+p.getAttribute('index');
-                	g.fill=p.firstChild.getAttribute('fill');
-                }
-                var val=element.getAttribute('fill-opacity');
-                if(val) g.opacity=val;
-            }
-            g.spin=element.getAttribute('spin');
-            switch(g.type) {
-                case 'line':
-                    g.points='';
-                    for(var p=0;p<element.points.length;p++) {
-                        g.points+=element.points[p].x+(i*dH)+',';
-                        g.points+=element.points[p].y+(j*dV)+' ';
-                    }
-                    // g.setAttribute('points',points);
-                    // addGraph(g);
-                    break;
-                case 'box':
-                    g.x=Number(element.getAttribute('x'))+(i*dH);
-                    g.y=Number(element.getAttribute('y'))+(j*dV);
-                    g.width=Number(element.getAttribute('width'));
-                    g.height=Number(element.getAttribute('height'));
-                    g.radius=Number(element.getAttribute('rx'));
-                    console.log('copy['+i+','+j+'] '+g.type+' at '+g.x+','+g.y);
-                    // addGraph(g);
-                    break;
-                case 'oval':
-                    g.cx=Number(element.getAttribute('cx'))+(i*dH);
-                    g.cy=Number(element.getAttribute('cy'))+(j*dV);
-                    g.rx=Number(element.getAttribute('rx'));
-                    g.ry=Number(element.getAttribute('ry'));
-                    console.log('copy '+g.type+' at '+g.cx+','+g.cy);
-                    break;
-                case 'arc':
-                    var d=element.getAttribute('d');
-                    getArc(d);
-                    g.cx=arc.cx+(i*dH);
-                    g.cy=arc.cy+(j*dV);
-                    g.x1=arc.x1+(i*dH);
-                    g.y1=arc.y1+(j*dV);
-                    g.x2=arc.x2+(i*dH);
-                    g.y2=arc.y2+(j*dV);
-                    g.r=arc.r;
-                    g.major=arc.major;
-                    g.sweep=arc.sweep;
-                    console.log('copy['+i+','+j+'] of '+g.type+' at '+g.cx+','+g.cy);
-                    break;
-                case 'text':
-                    g.x=Number(element.getAttribute('x'))+(i*dH);
-                    g.y=Number(element.getAttribute('y'))+(j*dV);
-                    g.flip=Number(element.getAttribute('flip'));
-                    g.text=element.innerHTML;
-                    g.textSize=Number(element.getAttribute('font-size'))/scale;
-                    var style=element.getAttribute('font-style');
-                    g.textStyle=(style=='italic')?'italic':'fine';
-                    if(element.getAttribute('font-weight')=='bold') g.textStyle='bold';
-                    break;
-                case 'combi':
-                    g.x=Number(element.getAttribute('x'))+(i*dH);
-                    g.y=Number(element.getAttribute('y'))+(j*dV);
-                    g.flip=Number(element.getAttribute('flip'));
-                    g.name=element.getAttribute('href').substr(1); // strip off leading #
-                    break;
-            }
-            addGraph(g); // ENSURE THIS CREATES SEPARATE GRAPHS & NOT SAME ONE SEVERAL TIMES!
-        }
+    for(var item of selection) {
+    	var el=id(item);
+    	console.log('repeat '+type(el));
+    	console.log(nH+' copies across at '+dH+'mm; '+nV+' copies down at '+dV+'mm');
+	    console.log(type(el)+' stroke: '+el.getAttribute('stroke'));
+    	for(var i=0;i<nH;i++) {
+        	for(var j=0;j<nV;j++) {
+            	if(i<1 && j<1) continue; // skip in-place duplicate
+            	var g={};
+            	g.type=type(el);
+            	if(g.type!='combi') { // combis don't have style
+                	g.stroke=el.getAttribute('stroke');
+                	g.lineW=el.getAttribute('stroke-width');
+                	g.lineStyle=getLineStyle(el);
+                	g.fillType=el.getAttribute('fillType');
+                	if(g.fillType.startsWith('url')) {
+                		var p=id('pattern'+el.id);
+                		g.fillType='pattern'+p.getAttribute('index');
+                		g.fill=p.firstChild.getAttribute('fill');
+                	}
+                	g.fill=el.getAttribute('fill');
+                	var val=el.getAttribute('fill-opacity');
+                	if(val) g.opacity=val;
+            	}
+            	g.spin=el.getAttribute('spin');
+            	switch(g.type) {
+                	case 'line':
+                    	g.points='';
+                    	for(var p=0;p<el.points.length;p++) {
+                        	g.points+=el.points[p].x+(i*dH)+',';
+                        	g.points+=el.points[p].y+(j*dV)+' ';
+                    	}
+                    	break;
+                	case 'box':
+                    	g.x=Number(el.getAttribute('x'))+(i*dH);
+                    	g.y=Number(el.getAttribute('y'))+(j*dV);
+                    	g.width=Number(el.getAttribute('width'));
+                    	g.height=Number(el.getAttribute('height'));
+                    	g.radius=Number(el.getAttribute('rx'));
+                    	console.log('copy['+i+','+j+'] '+g.type+' at '+g.x+','+g.y);
+	                    break;
+                	case 'oval':
+                    	g.cx=Number(el.getAttribute('cx'))+(i*dH);
+                    	g.cy=Number(el.getAttribute('cy'))+(j*dV);
+                    	g.rx=Number(el.getAttribute('rx'));
+                    	g.ry=Number(el.getAttribute('ry'));
+                    	console.log('copy '+g.type+' at '+g.cx+','+g.cy);
+                    	break;
+                	case 'arc':
+                    	var d=el.getAttribute('d');
+                    	getArc(d);
+                    	g.cx=arc.cx+(i*dH);
+                    	g.cy=arc.cy+(j*dV);
+                    	g.x1=arc.x1+(i*dH);
+                    	g.y1=arc.y1+(j*dV);
+                    	g.x2=arc.x2+(i*dH);
+                    	g.y2=arc.y2+(j*dV);
+                    	g.r=arc.r;
+                    	g.major=arc.major;
+                    	g.sweep=arc.sweep;
+                    	console.log('copy['+i+','+j+'] of '+g.type+' at '+g.cx+','+g.cy);
+                    	break;
+                	case 'text':
+                    	g.x=Number(el.getAttribute('x'))+(i*dH);
+                    	g.y=Number(el.getAttribute('y'))+(j*dV);
+                    	g.flip=Number(el.getAttribute('flip'));
+                    	g.text=el.innerHTML;
+                    	g.textSize=Number(el.getAttribute('font-size'))/scale;
+                    	var style=el.getAttribute('font-style');
+                    	g.textStyle=(style=='italic')?'italic':'fine';
+                    	if(el.getAttribute('font-weight')=='bold') g.textStyle='bold';
+                    	break;
+                	case 'combi':
+                    	g.x=Number(el.getAttribute('x'))+(i*dH);
+                    	g.y=Number(el.getAttribute('y'))+(j*dV);
+                    	g.flip=Number(el.getAttribute('flip'));
+                    	g.name=el.getAttribute('href').substr(1); // strip off leading #
+                    	break;
+            	}
+            	addGraph(g); // ENSURE THIS CREATES SEPARATE GRAPHS & NOT SAME ONE SEVERAL TIMES!
+        	}
+    	}
     }
     showDialog('repeatDialog',false);
     cancel();
@@ -1706,7 +1699,6 @@ id('penSelect').addEventListener('change',function() {
 id('textSize').addEventListener('change',function() {
     var val=event.target.value;
     console.log('set text size for '+selection.length+' items');
-    // NEW CODE...
     if(selection.length>0) {
     	for(var i=0;i<selection.length;i++) {
     		var el=id(selection[i]);
@@ -1716,23 +1708,24 @@ id('textSize').addEventListener('change',function() {
         	}
     	}
     }
-    /* OLD CODE
-    if(elID) { // change selected text element
-        element=id(elID);
-        if(type(element)=='text') {
-            element.setAttribute('font-size',val*scale);
-            // console.log('set element '+element.id+' text size to '+val);
-            updateGraph(element.id,['textSize',val]);
-        }
+    textSize=val; // change default text size
+});
+id('textFont').addEventListener('change',function() {
+	var val=event.target.value;
+    console.log('set text font for '+selection.length+' items');
+    if(selection.length>0) {
+    	for(var i=0;i<selection.length;i++) {
+    		var el=id(selection[i]);
+    		if(type(el)=='text') {
+            	el.setAttribute('font-font',val);
+            	updateGraph(el.id,['textFont',val]);
+        	}
+    	}
     }
-    */
-    else { // change default pen width
-        textSize=val;
-    }
+    textSize=val; // change default text font
 });
 id('textStyle').addEventListener('change',function() {
     var val=event.target.value;
-    // NEW CODE...
     if(selection.length>0) {
     	for(var i=0;i<selection.length;i++) {
     		var el=id(selection[i]);
@@ -1754,28 +1747,7 @@ id('textStyle').addEventListener('change',function() {
         	}
     	}
     }
-    /* OLD CODE
-    if(elID) { // change selected text element
-        element=id(elID);
-        if(type(element)=='text') {
-            switch(val) {
-                case 'fine':
-                    element.setAttribute('font-style','normal');
-                    element.setAttribute('font-weight','normal');
-                    break;
-                case 'bold':
-                    element.setAttribute('font-style','normal');
-                    element.setAttribute('font-weight','bold');
-                    break;
-                case 'italic':
-                    element.setAttribute('font-style','italic');
-                    element.setAttribute('font-weight','normal');
-            }
-            updateGraph(element.id,['textStyle',val]);
-        }
-    }
-    */
-    else { // change default pen width
+    else { // change default text style
         textStyle=val;
     }
 });
@@ -1788,7 +1760,7 @@ id('fillType').addEventListener('change',function() {
     var type=event.target.value;
     console.log('fill type: '+type);
     if(selection.length>0) {
-    	var col=id('fillCol').value;
+    	var col=id('fillColor').value;
     	for (var i=0;i<selection.length;i++) {
     		console.log('change fill type for selected element '+i);
     		var el=id(selection[i]);
@@ -1797,8 +1769,7 @@ id('fillType').addEventListener('change',function() {
     			return;
     		}
     		else {
-    			var ptn=id('pettern'+el.id); // attempt removal of any associated pattern
-    			// console.log('remove '+ptn);
+    			var ptn=id('pattern'+el.id); // attempt removal of any associated pattern
     			if(ptn) ptn.remove();
 	        	el.setAttribute('fill',(type=='none')?'none':col);
     		}
@@ -1827,17 +1798,11 @@ id('opacity').addEventListener('change',function() {
     if(selection.length>0) {
     	for(var i=0;i<selection.length;i++) {
     		var el=id(selection[i]);
+    		el.setAttribute('stroke-opacity',val);
     		el.setAttribute('fill-opacity',val);
         	updateGraph(el.id,['opacity',val]);
     	}
     }
-    /* OLD CODE
-    if(elID) { // change selected element
-        element=id(elID);
-        element.setAttribute('fill-opacity',val);
-        updateGraph(elID,['opacity',val]);
-    }
-    */
     else opacity=val; // change default opacity
     id('fill').style.opacity=val;
 });
@@ -1845,7 +1810,7 @@ id('blur').addEventListener('change',function() {
     var val=event.target.value;
     console.log('blur: '+val);
     if(selection.length>0) {
-    	var col=id('fillCol').value;
+    	var col=id('fillColor').value;
     	for (var i=0;i<selection.length;i++) {
     		console.log('change blur for selected element '+i);
     		var el=id(selection[i]);
@@ -2960,7 +2925,7 @@ id('graphic').addEventListener('pointerup',function() {
 	        graph.stroke=lineColor
 	        graph.lineStyle=lineType;
 	        graph.lineW=pen*scale;
-	        graph.fill='none'; // arcs default to no fill
+	        graph.fillType='none'; // arcs default to no fill
 	        graph.opacity=0;
 	        if((arc.r>=scale)&&(a!=0)) addGraph(graph); // avoid zero-size arcs
             id('blueOval').setAttribute('rx',0);
@@ -3204,15 +3169,9 @@ id('graphic').addEventListener('pointerup',function() {
                 if(selection.indexOf(hit)<0) { // add to selection
                     selection.push(hit);
                     if(selection.length<2) { // only item selected
-                    	// NEW CODE...
-                    	// elID=hit;
                         element=id(hit);
+                        console.log('element fill is '+element.getAttribute('fillType')+', '+element.getAttribute('fill'));
                         select(element,false);
-                        /* OLD CODE
-                        elID=hit;
-                        element=id(elID);
-                        select(element);
-                        */
                     }
                     else { // multiple selection
                         console.log('add '+type(el)+' '+el.id+' to multiple selection');
@@ -3685,8 +3644,15 @@ function makeElement(g) {
     	case 'sketch':
             var el=document.createElementNS(ns,'path');
             el.setAttribute('id',g.id);
+            el.setAttribute('stroke',g.stroke);
+            el.setAttribute('stroke-width',g.lineW);
+            var dash=setLineStyle(g);
+            if(dash) el.setAttribute('stroke-dasharray',dash);
+            el.setAttribute('fillType',g.fillType);
+            el.setAttribute('fill',g.fill);
+            if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             console.log('points: '+g.points);
-            el.setAttribute('points',g.points);
+            // el.setAttribute('points',g.points);
             el.setAttribute('d',sketchPath(g.points));
             el.setAttribute('spin',g.spin);
             if(g.spin!=0) setTransform(el); // apply spin MAY NOT WORK!!!
@@ -3812,6 +3778,7 @@ function makeElement(g) {
             if(g.textStyle=='bold') el.setAttribute('font-weight','bold');
             else if(g.textStyle=='italic') el.setAttribute('font-style','italic');
             el.setAttribute('stroke','none');
+            el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             var t=document.createTextNode(g.text);
             el.appendChild(t);
@@ -4350,7 +4317,6 @@ function saveSVG() {
 	id('datumSet').style.display='block';
 }
 function select(el,multiple) {
-	// NEW CODE...
 	if(multiple) { // one of multiple selection - highlight in blue
 		console.log('select element '+el.id+' of multiple selection');
 		var box=getBounds(el);
@@ -4371,6 +4337,33 @@ function select(el,multiple) {
         id('handles').innerHTML+=html;
     }
     	switch(type(el)) {
+    		case 'sketch':
+				var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
+				var request=graphs.get(Number(el.id));
+				request.onsuccess=function(event) {
+					var graph=request.result;
+					console.log('got graph '+graph.id);
+					var pts=graph.points;
+					el.points=graph.points;
+					console.log(el.points.length+' points');
+					for(var q=0;q<el.points.length;q++) {
+						console.log('point '+q+': '+el.points[q].x+','+el.points[q].y);
+					}
+					var points='';
+					for(var i=0;i<graph.points.length;i++) points+=pts[i].x+','+pts[i].y+' ';
+					id('bluePolyline').setAttribute('points',points);
+					var html="<use id='mover0' href='#mover' x='"+pts[0].x+"' y='"+pts[0].y+"'/>";
+					id('handles').innerHTML+=html; // circle handle moves whole element
+					for(var i=1;i<pts.length;i++) {
+						html="<use id='sizer"+i+"' href='#sizer' x='"+pts[i].x+"' y='"+pts[i].y+"'/>";
+						id('handles').innerHTML+=html; // disc handles move remaining nodes
+					}
+				}
+				id('guides').style.display='block';
+				prompt('SKETCH');
+				node=0; // default anchor node
+				mode='pointEdit';
+				break;
         	case 'line':
         	case 'shape':
             	var bounds=el.getBBox();
@@ -4517,8 +4510,8 @@ function select(el,multiple) {
 function setButtons() {
     var n=selection.length;
     console.log('set buttons for '+n+' selected elements');
-    var active=[3,9]; // active buttons - remove & move always active
-    // childNodes of editTools are... 0:add 1:remove 2:forward 3:back 4:move 5:spin 6:flip 7:align 8:double 9:repeat 10:fillet 11: anchor 12:combine
+    var active=[3,9,21]; // active buttons - remove, move and repeat always active
+    // childNodes of editTools are... 0:add 1:remove 2:forward 3:back 4:move 5:spin 6:flip 7:align 8:copy 9:double 10:repeat 11:fillet 12: anchor 13:combine
     if(n>1) { // multiple selection
         if(anchor) { // spin and flip and combine active if anchor available for multiple selection
             active.push(11);
@@ -4538,9 +4531,8 @@ function setButtons() {
             active.push(7);
             active.push(11); // spin and flip
             active.push(13);
-            active.push(17); // double, repeat and anchor
-            active.push(19);
-            active.push(23);
+            active.push(19); // double, repeat and anchor
+            active.push(25);
         } 
     }
     id('sizes').style.display=(n>1)?'none':'block';
@@ -4620,8 +4612,9 @@ function setStyle() {
             id('lineColor').style.backgroundColor=val;
             id('line').style.borderColor=val;
         }
+        id('patternOption').disabled=false;
         val=el.getAttribute('fillType');
-        console.log('fill: '+val);
+        console.log('fillType: '+val);
         if(val.startsWith('url')) {
         	id('fillType').value='pattern';
         	id('fillCol').value=id('pattern'+el.id).firstChild.getAttribute('fill');
@@ -4654,6 +4647,8 @@ function setStyle() {
             if(val=='italic') id('textStyle').value='italic';
             val=el.getAttribute('font-weight');
             if(val=='bold') id('textStyle').value='bold';
+            id('patternOption').disabled=true;
+            id('patternOption').disabled=true;
         } 
     }
 }
@@ -4842,7 +4837,10 @@ function swopGraphs(g1,g2) {
     }
 }
 function type(el) {
-    if(el instanceof SVGPolylineElement) {
+	if(el instanceof(SVGPathElement)) {
+		return 'sketch';
+	}
+    else if(el instanceof SVGPolylineElement) {
         return 'line';
     }
     else if(el instanceof SVGPolygonElement) {
