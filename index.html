@@ -182,7 +182,7 @@
         </select>
     </div>
     <div id='loadDialog' class='dialog'>
-        <b>LOAD<b></b>
+        <b>LOAD</b>
         <p>
         <input type='radio' name='loadMethod' id='replace' checked>
         <label for='replace'>replace</label><br>
@@ -329,14 +329,6 @@
         <!--p>scale? <input type='checkbox' id='combiScale'/></p-->
         <p>name: <input type='text' id='combiName'/>.json</p>
     </div>
-    <!--div id='shadeMenu'>
-        <svg width='96' height='24'>
-            <rect id='blueWhite' x='0' y='0' width='24' height='24' stroke='none' fill='whiter'/>
-            <rect x='24' y='0' width='24' height='24' stroke='none' fill='silver'/>
-            <rect x='48' y='0' width='24' height='24' stroke='none' fill='gray'/>
-            <rect x='72' y='0' width='24' height='24' stroke='none' fill='black'/>
-        </svg>
-    </div-->
     <div id='colorPicker' class='dialog'>
     	<svg width='450' height='175'>
     		<rect id='#000' x='175' y='0' width='25' height='25' stroke='none' fill='#000'/>
@@ -406,7 +398,8 @@
     	</svg>
     </div>
     <div id='textDialog' class='dialog'>
-        text: <input id='text' type='text' size='50'/>
+        text<br><br><button id='textOKbutton' class='iconButton'></button>
+        <textarea id='text' rows='5' cols='100'></textarea><!--input id='text' type='text' size='50'/-->
     </div>
 	<script src="hockneyScript.js" async></script>
 </body>

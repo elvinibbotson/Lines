@@ -370,7 +370,9 @@ id('textButton').addEventListener('click',function() {
     mode='text';
     prompt('TEXT: tap at start');
 });
+/*
 id('text').addEventListener('change',function() {
+	console.log('text changed');
     var text=event.target.value;
     if(elID) { // change selected text
         element=id(elID);
@@ -396,6 +398,59 @@ id('text').addEventListener('change',function() {
     }
     cancel();
 });
+*/
+id('textOKbutton').addEventListener('click',function() {
+	var text=id('text').value;
+	console.log('text: '+text);
+	var chars=text.length;
+	console.log('text: '+text+' - '+chars+' characters');
+	// create SVG and element
+	content='';
+	var rows=[];
+	var row=0;
+	var across=0;
+	var i=0;
+	if(element) across=element.getAttribute(x);
+	else across=x0;
+	console.log('across: '+across);
+	while(i<chars) {
+		rows[row]="<tspan x='"+x+"' dy='1em'>"
+		while((i<chars)&&(text.charAt(i)!='\n')) {
+			rows[row]+=text.charAt(i);
+			i++;
+		}
+		rows[row]+="</tspan>";
+		console.log('row '+row+': '+rows[row]);
+		content+=rows[row];
+		row++;
+		i++;
+	}
+	console.log('text content: '+content);
+	if(element) { // change selected text
+        element.innerHTML=content;
+        updateGraph(element.id,['text',content]);
+    }
+    else {
+        console.log('add text '+text);
+        var graph={}
+	    graph.type='text';
+	    graph.text=content;
+	    graph.x=x0;
+        graph.y=y0;
+        graph.spin=0;
+        graph.flip=0;
+        graph.textSize=textSize;
+        graph.textFont=textFont;
+        graph.textStyle=textStyle;
+        graph.fillType='solid';
+	    graph.fill=lineColor;
+	    graph.opacity=opacity;
+	    var el=addGraph(graph);
+	    // el.innerHTML=text;
+    }
+    cancel();
+	// id('text').style.display='none';
+})
 id('dimButton').addEventListener('click',function() {
    mode='dimStart';
    // id('tools').style.display='none';
@@ -3437,7 +3492,8 @@ function addGraph(el) {
         console.log('result: '+event.target.result);
         el.id=event.target.result;
         console.log('graph added - id: '+el.id+' - draw');
-        id('dwg').appendChild(makeElement(el));
+        el=makeElement(el);
+        return el;
     }
     request.onerror=function(event) {
         console.log('add copy failed');
@@ -3781,7 +3837,8 @@ function makeElement(g) {
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             var t=document.createTextNode(g.text);
-            el.appendChild(t);
+			el.appendChild(t).then
+				el.innerHTML=g.text;
             id('textDialog').style.display='none';
             if((g.spin!=0)||(g.flip!=0)) setTransform(el);
             break;
@@ -3840,9 +3897,7 @@ function makeElement(g) {
             el.appendChild(dim);
             dim={}; // no nodes for dimensions but add to dims array
             dim.dim=g.id;
-            // dim.el1=g.el1;
             dim.n1=g.n1;
-            // dim.el2=g.el2;
             dim.n2=g.n2;
             console.log('add link - dim. '+dim.dim+' nodes: '+dim.n1+','+dim.n2);
             dims.push(dim);
@@ -3886,6 +3941,7 @@ function makeElement(g) {
 		}
 		if(g.blur>0) el.setAttribute('filter','url(#blur'+g.blur+')');
     }
+    id('dwg').appendChild(el);
     return el;
 }
 function move(el,dx,dy) {
@@ -4463,14 +4519,29 @@ function select(el,multiple) {
         	    var bounds=el.getBBox();
             	w=Math.round(bounds.width);
 	            h=Math.round(bounds.height);
+	            console.log('bounds: '+bounds.x+','+bounds.y+' - '+bounds.width+'x'+bounds.height);
     	        // draw handle
         	    var html="<use id='mover0' href='#mover' x='"+bounds.x+"' y='"+(bounds.y+h)+"'/>";
             	// var html="<circle id='handle' cx="+bounds.x+" cy="+(bounds.y+bounds.height)+" r='"+handleR+"' stroke='none' fill='#0000FF88'/>";
 	            id('handles').innerHTML+=html; // circle handle moves text
     	        // show text edit dialog
-        	    id('textDialog').style.left='48px';
-            	id('textDialog').style.top='4px';
-	            id('text').value=element.innerHTML;
+        	    id('textDialog').style.left=bounds.x+'px'; // '48px';
+            	id('textDialog').style.top=bounds.y+50+'px'; //'100px';
+	            // id('text').value=element.innerHTML;
+	            // TRY
+	            var t=element.innerHTML;
+	            console.log('text: '+t);
+	            var content='';
+	            i=0;
+	            while(i<t.length) {
+	            	while(t.charAt(i)!='>') i++;
+	            	console.log('> at '+i);
+	            	i++;
+	            	if(t.charAt(i)=='<') content+='\n';
+	            	while((i<t.length)&&(t.charAt(i)!='<')) content+=t.charAt(i++);
+	            	console.log('content: '+content+'; < at '+i);
+	            }
+	            id('text').value=content;
     	        id('textDialog').style.display='block';
         	    mode='edit';
             	break;

@@ -15,6 +15,13 @@ input {
 input [type='checkbox'] {
 	border: red solid 3px;
 }
+textarea {
+	padding: 10px;
+	max-width: 100%;
+	line-height: 1.5;
+	font-size: 0.8rem;
+	letter-spacing: 1px;
+}
 img {
     vertical-align: bottom;
     border: 1px solid gray;
@@ -315,6 +322,12 @@ button {
     border-radius: 3px;
     z-index: 10;
     display: none;
+}
+#textOKbutton {
+	position: absolute;
+	top: 0;
+	right: 0;
+    background: url(svg/tick.svg) center center no-repeat;
 }
 #text {
     width: 96px;
