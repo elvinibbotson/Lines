@@ -7,7 +7,7 @@
     <meta name="keywords" content="CAD, drawing, design, scale drawing, building, PWA, app">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta name="theme-color" content="#333333">
-	<title>brunel</title>
+	<title>Hockney</title>
 	<link rel="stylesheet" type="text/css" href="hockneyStyle.css">
   	<link rel="manifest" href="manifest.json">
   	<meta name="application-name" content="hockney">
@@ -15,11 +15,11 @@
 <body>
 	<div id='prompt'></div>
     <div id='graphic' draggable='false'>
-        <svg id='ref' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
-            <rect id='background' x='0' y='0' width='297' height='297' stroke='none' fill='white'/>
+        <svg id='paper' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
+            <rect id='paperSheet' x='0' y='0' width='297' height='210' stroke='none' fill='white'>
         </svg>
-        <div id='drawing'>
-		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
+        <div id='drawing' draggable='false'>
+		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210' >
 		    <defs>
 		    	<filter id='blur1' x='-10' y='-10' width='297' height='210'>
 		            <feGaussianBlur in='SourceGraphic' stdDeviation='1'/>
@@ -70,7 +70,9 @@
                 </radialGradient>
 		        <g id='combis'></g>
 		    </defs>
-		    <g id='dwg' style="clip-path: url(#clipper);">
+		    
+		    <g id='dwg' style="clip-path: url(#clipper);" draggable='false'>
+		    	 
 		    </g>
 		    <g id='selection'></g>
 		    <g id='handles'></g>
@@ -94,6 +96,8 @@
 		</div>
 	</div>
     <div id='tools'>
+    	<!--div id='layer'>1</div-->
+    	<button id='layersButton' class='iconButton'><span id='layer'>1</span></button>
         <button id='docButton' class='iconButton'></button>
         <button id='zoomInButton' class='iconButton'></button>
         <button id='zoomOutButton' class='iconButton'></button>
@@ -107,6 +111,7 @@
         <button id='textButton' class='iconButton'></button>
         <button id='dimButton' class='iconButton'></button>
         <button id='combiButton' class='iconButton'></button>
+        <button id='imageButton' class='iconButton'></button>
     </div>
     <div id='editTools'>
         <button id='addButton' class='iconButton' disabled></button>
@@ -133,6 +138,62 @@
     <div id='fill'></div>
     <div id='line'></div>
     <button id='undoButton' class='iconButton'></button>
+    <div id='layerDialog' class='dialog'>
+    	<b>LAYERS</b>
+    	<ul id='layerList'>
+    		<li>
+    			<input type='radio' id='layer9' name='layerChoice' class='layerChooser' value='9'>9
+    			<input type='text' id='layerName9' class='layerName'>
+    			<input type='checkbox' id='layerVisible9' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer8' name='layerChoice' class='layerChooser' value='8'>8
+    			<input type='text' id='layerName8' class='layerName'>
+    			<input type='checkbox' id='layerVisible8' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer7' name='layerChoice' class='layerChooser' value='7'>7
+    			<input type='text' id='layerName7' class='layerName'>
+    			<input type='checkbox' id='layerVisible7' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer6' name='layerChoice' class='layerChooser' value='6'>6
+    			<input type='text' id='layerName6' class='layerName'>
+    			<input type='checkbox' id='layerVisible6' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer5' name='layerChoice' class='layerChooser' value='5'>5
+    			<input type='text' id='layerName5' class='layerName'>
+    			<input type='checkbox' id='layerVisible5' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer4' name='layerChoice' class='layerChooser' value='4'>4
+    			<input type='text' id='layerName4' class='layerName'>
+    			<input type='checkbox' id='layerVisible4' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer3' name='layerChoice' class='layerChooser' value='3'>3
+    			<input type='text' id='layerName3' class='layerName'>
+    			<input type='checkbox' id='layerVisible3' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer2' name='layerChoice' class='layerChooser' value='2'>2
+    			<input type='text' id='layerName2' class='layerName'>
+    			<input type='checkbox' id='layerVisible2' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer1' name='layerChoice' class='layerChooser' value='1' checked>1
+    			<input type='text' id='layerName1' class='layerName'>
+    			<input type='checkbox' id='layerVisible1' class='layerVisible'>
+    		</li>
+    		<li>
+    			<input type='radio' id='layer0' name='layerChoice' class='layerChooser' value='0' checked>0
+    			&nbsp;background<input type='checkbox' id='layerVisible0' class='layerVisible'>
+    			
+    		</li>
+    	</ul>
+    </div>
+    </div>
     <div id='docDialog' class='dialog'>
         <p><b>DRAWING:</b> <span id='drawingName'></span></p>
         <p><span id='drawingSize'></span> | <span id='drawingAspect'></span> | 1:<span id='drawingScale'></span></p>
@@ -149,7 +210,7 @@
             <option value=1000>1m</option>
         </select>
         </p>
-        <p><button id='new'>NEW</button> <button id='load'>LOAD</button> <button id='save'>SAVE</button> <button id='print'>PRINT</button></p>
+        <p><button id='new'>NEW</button> <button id='load'>LOAD</button> <button id='save'>SAVE</button></p>
     </div>
     <div id='newDrawingDialog' class='dialog'>
         <button id='createNewDrawing'>NEW DRAWING</button>
@@ -188,8 +249,10 @@
         <label for='replace'>replace</label><br>
         <input type='radio' name='loadMethod' id='merge'>
         <label for='merge'>merge</label><br>
-        <input type='radio' name='loadMethod' id='reference'>
-        <label for='reference'>reference</label><br>
+        <!--input type='radio' name='loadMethod' id='refer'>
+        <label for='refer'>reference drawing</label><br>
+        <input type='radio' name='loadMethod' id='bckgrnd'>
+        <label for='bckgrnd'>background image</label><br-->
         <input type='radio' name='loadMethod' id='combi'>
         <label for='combi'>combi</label>
         </p>
@@ -198,14 +261,22 @@
     </div>
     <div id='saveDialog' class='dialog'>
         <button id='confirmSave'>SAVE</button>
+        <p>
+            <input type='radio' name='saveMethod' id='data' checked>
+            <label for='data'>drawing (json)</label><br>
+            <input type='radio' name='saveMethod' id='print'>
+            <label for='print'>as SVG (to print)</label><br>
+            <input type='radio' name='saveMethod' id='image'>
+            <label for='image'>as an image (PNG)</label><br>
+        </p>
         <p>as <input type='text' id='saveName' class='nameField'/>.json</p>
         <p>The file will appear in your downloads folder</p>
     </div>
-    <div id='printDialog' class='dialog'>
+    <!--div id='printDialog' class='dialog'>
 	    <button id='confirmPrint'>SAVE</button> as printable SVG file
 		<p>file name <input type='text' id='printName' class='nameField'>.svg</p>
 		<p>The saved <i>scalable vector graphics</i> file<br>will appear in your downloads folder.</p>
-	</div>
+	</div-->
     <div id='dimDialog' class='dialog'>
         <button id='confirmDim'>DIMENSION</button>
         <input type='radio' name='dimDir' id='horizontal' value='h'>
@@ -220,6 +291,11 @@
         <p><select id='combiList'>
             <option onclick='prompt("select a combi");' value=null>select a combi</option>
         </select></p>
+    </div>
+    <div id='imageDialog' class='dialog'>
+        <b>IMAGE</b>
+        <p><input type="file" id="imageChooser" accept="image/png, image/jpg, image/jpeg" class='nameField'></p>
+        <img id='preview' src='#'>
     </div>
     <div id='stylesDialog' class='dialog'>
         <p>line 
@@ -245,7 +321,7 @@
             <option value=14>28pt</option>
         </select>
         <select id='textFont'>
-            <option value='sans'>sans</option>
+            <option value='sans-serif'>sans</option>
             <option value='serif'>serif</option>
             <option value='mono'>mono</option>
             <option value='cursive'>cursive</option>
@@ -398,8 +474,8 @@
     	</svg>
     </div>
     <div id='textDialog' class='dialog'>
-        text<br><br><button id='textOKbutton' class='iconButton'></button>
-        <textarea id='text' rows='5' cols='100'></textarea><!--input id='text' type='text' size='50'/-->
+        <p><button id='textOKbutton'>TEXT</button></p>
+        <textarea id='text' rows='5' cols='100'></textarea>
     </div>
 	<script src="hockneyScript.js" async></script>
 </body>

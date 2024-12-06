@@ -1,4 +1,7 @@
 body {
+	margin: 0;
+	height: 100%;
+	overflow: hidden;
 	font-family: sans-serif;
 	background: silver;
 }
@@ -12,11 +15,8 @@ input {
 	/*border-radius: 3px;*/
 	font-size: 1.2em;
 }
-input [type='checkbox'] {
-	border: red solid 3px;
-}
 textarea {
-	padding: 10px;
+	padding: 5px;
 	max-width: 100%;
 	line-height: 1.5;
 	font-size: 0.8rem;
@@ -41,6 +41,13 @@ button {
     border: none;
     border-radius: 5px;
 }
+ul {
+	padding: 0;
+}
+li {
+	list-style-type: none;
+	margins: 5px 5px 0 5px;
+}
 .iconButton {
     width: 32px;
     height: 32px;
@@ -52,9 +59,9 @@ button {
 }
 .dialog {
 	position: fixed;
-	left: 48px;
+	left: 50px;
 	right: null;
-	top: 48px;
+	top: 50px;
 	padding: 5px;
 	border: 3px solid #666;
 	border-radius: 10px;
@@ -63,8 +70,23 @@ button {
 	background-color: #EEE;
 	z-index: 10;
 }
+.layerChooser {
+	margins: 0 5px 0 0;
+	width: 16px;
+	height: 16px;
+}
+.layerVisible {
+	width: 16px;
+	height: 16px;
+	float: right;
+}
+.layerName {
+	width: 120px;
+	height: 16px;
+}
 .nameField {
     width: 240px;
+    border: none;
 }
 .spin90 {
     transform: rotate(90deg);
@@ -170,12 +192,12 @@ button {
     z-index: 12;
     display: none;
 }
-#ref {
+#paper {
     position: absolute;
 	left: 0;
 	top: 0;
-	background-color: silver;
-    z-index: 1;
+	background-color: #CCC;
+    z-index: 0;
 }
 #svg {
     position: absolute;
@@ -188,6 +210,18 @@ button {
 }
 #datumSet {
     display: none;
+}
+#layer {
+	position: absolute;
+	top: 2px;
+	left: 8px;
+	color: white;
+	font-size: 20pt;
+	font-weight: bold;
+	z-index: 5;
+}
+#layersButton {
+	background: url(svg/layers.svg) center center no-repeat;
 }
 #docButton {
     background: url(svg/document.svg) center center no-repeat;
@@ -227,6 +261,9 @@ button {
 }
 #combiButton {
     background: url(svg/combi.svg) center center no-repeat;
+}
+#imageButton {
+	background: url(svg/image.svg) center center no-repeat;
 }
 #addButton {
     background: url(svg/add.svg) center center no-repeat;
@@ -286,7 +323,7 @@ button {
     font-size: 1.2em;
     font-weight: bold;
     font-style: italic;
-    display: block;
+    display: none;
     z-index: 13;
 }
 #undoButton {
@@ -314,23 +351,13 @@ button {
     left: 100px;
     display: none;
 }
-#textDialog {
-    position: fixed;
-    top: 0;
-    left: 0;
-    padding: 5px;
-    border-radius: 3px;
-    z-index: 10;
-    display: none;
-}
-#textOKbutton {
-	position: absolute;
-	top: 0;
-	right: 0;
-    background: url(svg/tick.svg) center center no-repeat;
+#patternMenu {
+	width: 192px;
+	height: 192px;
+	background: white url('patterns.png') no-repeat center;
 }
 #text {
-    width: 96px;
+    width: 200px;
 }
 #dimDialog {
     left: 8px;
