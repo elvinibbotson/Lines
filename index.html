@@ -13,13 +13,11 @@
   	<meta name="application-name" content="hockney">
 </head>
 <body>
-	<div id='prompt'></div>
     <div id='graphic' draggable='false'>
         <svg id='paper' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
             <rect id='paperSheet' x='0' y='0' width='297' height='210' stroke='none' fill='white'>
-        </svg>
         <div id='drawing' draggable='false'>
-		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210' >
+		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
 		    <defs>
 		    	<filter id='blur1' x='-10' y='-10' width='297' height='210'>
 		            <feGaussianBlur in='SourceGraphic' stdDeviation='1'/>
@@ -68,11 +66,9 @@
                     <stop offset='0%' stop-color='blue' stop-opacity="0.25"/>
                     <stop offset='100%' stop-color='blue' stop-opacity="0"/>
                 </radialGradient>
-		        <g id='combis'></g>
+		        <g id='sets'></g>
 		    </defs>
-		    
 		    <g id='dwg' style="clip-path: url(#clipper);" draggable='false'>
-		    	 
 		    </g>
 		    <g id='selection'></g>
 		    <g id='handles'></g>
@@ -96,21 +92,20 @@
 		</div>
 	</div>
     <div id='tools'>
-    	<!--div id='layer'>1</div-->
     	<button id='layersButton' class='iconButton'><span id='layer'>1</span></button>
         <button id='docButton' class='iconButton'></button>
         <button id='zoomInButton' class='iconButton'></button>
         <button id='zoomOutButton' class='iconButton'></button>
         <button id='extentsButton' class='iconButton'></button>
         <button id='panButton' class='iconButton'></button>
-        <button id='sketchButton' class='iconButton'></button>
+        <button id='curveButton' class='iconButton'></button>
         <button id='lineButton' class='iconButton'></button>
         <button id='boxButton' class='iconButton'></button>
         <button id='ovalButton' class='iconButton'></button>
         <button id='arcButton' class='iconButton'></button>
         <button id='textButton' class='iconButton'></button>
         <button id='dimButton' class='iconButton'></button>
-        <button id='combiButton' class='iconButton'></button>
+        <button id='setButton' class='iconButton'></button>
         <button id='imageButton' class='iconButton'></button>
     </div>
     <div id='editTools'>
@@ -127,12 +122,28 @@
         <button id='repeatButton' class='iconButton'></button>
         <button id='filletButton' class='iconButton'></button>
         <button id='anchorButton' class='iconButton'></button>
-        <button id='combineButton' class='iconButton'></button>
+        <button id='joinButton' class='iconButton'></button>
     </div>
-    <div id='sizes'>
+    <div id='info'>
+    	<span id='type'></span>
         <input id='first' type='number'/> <span id='between'>x</span>
         <input id='second' type='number'/><span id='after'>mm</span>
-        <input id='spin' type='number'/>&deg;
+        <input id='spin' type='number'/>&deg;<span id='elementLayer'> layer # </span>
+        <br><span id='hint'></span>
+    </div>
+    <div id='layerChooser'>
+    	<ul id='layerChoice'>
+    		<li>0 <input type='radio' id='choice0' name='layers' class='layerChooser' value=0> background</li>
+    		<li>1 <input type='radio' id='choice1' name='layers' class='layerChooser' value=0></li>
+    		<li>2 <input type='radio' id='choice2' name='layers' class='layerChooser' value=0></li>
+    		<li>3 <input type='radio' id='choice3' name='layers' class='layerChooser' value=0></li>
+    		<li>4 <input type='radio' id='choice4' name='layers' class='layerChooser' value=0></li>
+    		<li>5 <input type='radio' id='choice5' name='layers' class='layerChooser' value=0></li>
+    		<li>6 <input type='radio' id='choice6' name='layers' class='layerChooser' value=0></li>
+    		<li>7 <input type='radio' id='choice7' name='layers' class='layerChooser' value=0></li>
+    		<li>8 <input type='radio' id='choice8' name='layers' class='layerChooser' value=0></li>
+    		<li>9 <input type='radio' id='choice9' name='layers' class='layerChooser' value=0></li>
+    	</ul>
     </div>
     <div id='checks'></div>
     <div id='fill'></div>
@@ -253,8 +264,8 @@
         <label for='refer'>reference drawing</label><br>
         <input type='radio' name='loadMethod' id='bckgrnd'>
         <label for='bckgrnd'>background image</label><br-->
-        <input type='radio' name='loadMethod' id='combi'>
-        <label for='combi'>combi</label>
+        <input type='radio' name='loadMethod' id='set'>
+        <label for='set'>set</label>
         </p>
         <p><input type="file" id="fileChooser" class='nameField'>
         </p>
@@ -272,11 +283,6 @@
         <p>as <input type='text' id='saveName' class='nameField'/>.json</p>
         <p>The file will appear in your downloads folder</p>
     </div>
-    <!--div id='printDialog' class='dialog'>
-	    <button id='confirmPrint'>SAVE</button> as printable SVG file
-		<p>file name <input type='text' id='printName' class='nameField'>.svg</p>
-		<p>The saved <i>scalable vector graphics</i> file<br>will appear in your downloads folder.</p>
-	</div-->
     <div id='dimDialog' class='dialog'>
         <button id='confirmDim'>DIMENSION</button>
         <input type='radio' name='dimDir' id='horizontal' value='h'>
@@ -286,10 +292,10 @@
         <input type='radio' name='dimDir' id='oblique' value='o' checked>
         <label for='oblique'>oblique</label>
     </div>
-    <div id='combiDialog' class='dialog'>
-        <p>select a combi</p>
-        <p><select id='combiList'>
-            <option onclick='prompt("select a combi");' value=null>select a combi</option>
+    <div id='setDialog' class='dialog'>
+        <p>select a set</p>
+        <p><select id='setList'>
+            <option onclick='prompt("select a set");' value=null>select a set</option>
         </select></p>
     </div>
     <div id='imageDialog' class='dialog'>
@@ -400,10 +406,9 @@
         <button id='confirmFillet'>FILLET</button>
         <p>radius:<input type='number' id='filletR'/>mm</p>
     </div>
-    <div id='combineDialog' class='dialog'>
-        <button id='confirmCombine'>COMBINE</button>
-        <!--p>scale? <input type='checkbox' id='combiScale'/></p-->
-        <p>name: <input type='text' id='combiName'/>.json</p>
+    <div id='joinDialog' class='dialog'>
+        <button id='confirmJoin'>JOIN</button>
+        <p>name: <input type='text' id='setName'/>.json</p>
     </div>
     <div id='colorPicker' class='dialog'>
     	<svg width='450' height='175'>

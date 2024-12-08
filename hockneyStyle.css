@@ -11,7 +11,8 @@ input {
 	color: black;
 	background-color: white;
 	border: 1px solid gray;
-	padding: 3px;
+	padding: 0;
+	margin: 1px;
 	/*border-radius: 3px;*/
 	font-size: 1.2em;
 }
@@ -138,17 +139,46 @@ li {
     display: none;
     z-index: 11;
 }
-#sizes {
+#info {
     position: fixed;
-    top: 4px;
+    top: ;
     left: 48px;
+    height: 0;
+    /*padding: 4px;*/
+    font-size: 1em;
+    color: black;
+    background-color: #ffffff80;
+    z-index: 10;
+    display: block;
+    overflow: hidden;
+}
+#layerChooser {
+	position: fixed;
+	left: 250px;
+	top: 4px;
+	padding: 5px;
+	border: 3px solid #666;
+	border-radius: 10px;
+	color: black;
+	background-color: #EEE;
+	z-index: 10;
+	display: none;
+}
+/*
+#prompt {
+    position: fixed;
+    left: 48px;
+    top: 40px;
+    width: 40%;
     padding: 4px;
-    border-radius: 3px;
+    padding-top: 0;
+    font-size: 1em;
     color: black;
     background-color: #ffffff80;
     z-index: 10;
     display: none;
 }
+*/
 #spinPanel {
     display: none;
 }
@@ -238,8 +268,8 @@ li {
 #panButton {
     background: url(svg/pan.svg) center center no-repeat;
 }
-#sketchButton {
-    background: url(svg/sketch.svg) center center no-repeat;
+#curveButton {
+    background: url(svg/curve.svg) center center no-repeat;
 }
 #lineButton {
     background: url(svg/line.svg) center center no-repeat;
@@ -259,8 +289,8 @@ li {
 #dimButton {
     background: url(svg/dimension.svg) center center no-repeat;
 }
-#combiButton {
-    background: url(svg/combi.svg) center center no-repeat;
+#setButton {
+    background: url(svg/set.svg) center center no-repeat;
 }
 #imageButton {
 	background: url(svg/image.svg) center center no-repeat;
@@ -305,26 +335,11 @@ li {
 #anchorButton {
     background: url(svg/anchor.svg) center center no-repeat;
 }
-#combineButton {
-    background: url(svg/combi.svg) center center no-repeat;
+#joinButton {
+    background: url(svg/set.svg) center center no-repeat;
 }
 #spin {
     width: 2em;
-}
-#prompt {
-    position: fixed;
-    left: 50px;
-    top: 48px;
-    color: white;
-    background-color: black;
-    border-radius: 8px;
-    opacity: 0.5;
-    padding: 4px;
-    font-size: 1.2em;
-    font-weight: bold;
-    font-style: italic;
-    display: none;
-    z-index: 13;
 }
 #undoButton {
     background: url(svg/undo.svg) center center no-repeat;
@@ -362,7 +377,7 @@ li {
 #dimDialog {
     left: 8px;
 }
-#combiDialog {
+#setDialog {
     left: 8px;
 }
 #diagnostics {

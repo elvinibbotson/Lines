@@ -42,8 +42,8 @@ var elID=null; // id of current element
 var memory=[]; // holds element states to allow undo
 var node=0; // node number (0-9) within selected element
 var blueline=null; // bluePolyline
-var combi=null; // current combi
-var combiID=null; // id of current combi
+var set=null; // current set
+var setID=null; // id of current set
 var lineType='solid'; // default styles
 var lineColor='black';
 var pen=0.25; // 0.25mm at 1:1 scale - increase for smaller scales (eg.12.5 at 1:50 scale)
@@ -95,7 +95,7 @@ if(!layerData) { // initialise layers first time
 	}
 	layer=1;
 	layers[0].name='background';
-	for(var i=0;i<10;i++) {
+	for(var i=1;i<10;i++) {
 		id('layerName'+i).value=layers[i].name;
 	}
 }
@@ -119,19 +119,17 @@ if(!aspect) {
     showDialog('newDrawingDialog',true);
 }
 else initialise();
-setTimeout(function(){id('prompt').style.display='none'},5000);
+// setTimeout(function(){id('prompt').style.display='none'},5000);
 // disable annoying pop-up menu
-document.addEventListener('contextmenu', event => event.preventDefault());
+document.addEventListener('contextmenu',event=>event.preventDefault());
 // TOOLS
 id('layersButton').addEventListener('click',function() {
 	console.log('LAYERS');
 	showDialog('layerDialog',true);
 });
 for(var i=0;i<10;i++) {
-	if(i>0) {
-		id('layer'+i).addEventListener('click',setLayers);
-		id('layerName'+i).addEventListener('change',setLayers);
-	}
+	id('layer'+i).addEventListener('click',setLayers);
+	if(i>0) {id('layerName'+i).addEventListener('change',setLayers);}
 	id('layerVisible'+i).addEventListener('click',setLayerVisibility);
 }
 id('docButton').addEventListener('click',function() {
@@ -199,10 +197,10 @@ id('load').addEventListener('click',function() {
     showDialog('loadDialog',true); 
 });
 id('fileChooser').addEventListener('change',function() {
-    // CLEAR graphs AND combis OBJECT STORES BEFORE LOADING NEW DRAWING DATA
+    // CLEAR graphs AND sets OBJECT STORES BEFORE LOADING NEW DRAWING DATA
     var method='replace';
     if(id('merge').checked) method='merge';
-    else if(id('combi').checked) method='combi';
+    else if(id('set').checked) method='set';
     console.log('load method: '+method);
     var file=id('fileChooser').files[0];
     console.log('load file '+file+' name: '+file.name);
@@ -211,9 +209,9 @@ id('fileChooser').addEventListener('change',function() {
         var data=evt.target.result;
 		var json=JSON.parse(data);
 		console.log("json: "+json);
-		var transaction=db.transaction(['graphs','combis'],'readwrite');
+		var transaction=db.transaction(['graphs','sets'],'readwrite');
 		var graphStore=transaction.objectStore('graphs');
-		var combiStore=transaction.objectStore('combis');
+		var setStore=transaction.objectStore('sets');
 		if(method=='replace') {
 		    name=file.name;
 		   	var n=name.indexOf('.json');
@@ -222,7 +220,7 @@ id('fileChooser').addEventListener('change',function() {
 		   	id('dwg').innerHTML=''; // clear drawing
            	id('handles').innerHTML=''; // clear any edit handles
 	    	graphStore.clear();
-		    combiStore.clear();
+		    setStore.clear();
 		   	nodes=[];
 		   	dims=[];
 		   	size=json.size;
@@ -237,9 +235,9 @@ id('fileChooser').addEventListener('change',function() {
 	        	console.log('add graph '+json.graphs[i].type);
 	        	var request=graphStore.add(json.graphs[i]);
 	        }
-		    for(i=0;i<json.combis.length;i++) {
-		       	console.log('add combi '+json.combis[i].name);
-		       	request=combiStore.add(json.combis[i]);
+		    for(i=0;i<json.sets.length;i++) {
+		       	console.log('add set '+json.sets[i].name);
+		       	request=setStore.add(json.sets[i]);
 		   	}
 		}
 		else if(method=='merge') {
@@ -253,26 +251,27 @@ id('fileChooser').addEventListener('change',function() {
 		            json.graphs[i].fill='none'; // ...with no fill
 		            console.log('graph '+i+' set as blue outline'); 
 		        }
+		        json.graphs[i].layer=layer; // import drawing to current layer
 		        var request=graphStore.add(json.graphs[i]);
 		    }
-		    for(i=0;i<json.combis.length;i++) {
-		        console.log('add combi '+json.combis[i].name);
-		        request=combiStore.add(json.combis[i]);
+		    for(i=0;i<json.sets.length;i++) {
+		        console.log('add set '+json.sets[i].name);
+		        request=setStore.add(json.sets[i]);
 		    }
 		}
-		if(method=='combi') { // load selected combi
-		    var name=json.name; // one combi per file
+		if(method=='set') { // load selected set
+		    var name=json.name; // one set per file
 		    console.log("add "+name);
-			var request=combiStore.add(json);
+			var request=setStore.add(json);
 			request.onsuccess=function(e) {
 			    var n=request.result;
-				console.log("combi added to database: "+n);
+				console.log("set added to database: "+n);
 			};
-			request.onerror=function(e) {console.log("error adding combis");};
+			request.onerror=function(e) {console.log("error adding sets");};
 		}
 		transaction.oncomplete=function() {
 		    console.log('drawing imported - load & draw');
-            if(method!='combi') load();
+            if(method!='set') load();
 		}
     });
     loader.addEventListener('error',function(event) {
@@ -297,8 +296,8 @@ id('confirmSave').addEventListener('click',function() {
     	data.aspect=aspect;
     	data.scale=scale;
     	data.graphs=[];
-    	data.combis=[];
-    	var transaction=db.transaction(['graphs','combis']);
+    	data.sets=[];
+    	var transaction=db.transaction(['graphs','sets']);
     	var request=transaction.objectStore('graphs').openCursor();
     	request.onsuccess=function(event) {
         	var cursor=event.target.result;
@@ -313,17 +312,17 @@ id('confirmSave').addEventListener('click',function() {
         }
         	else {
             console.log('save '+data.graphs.length+' graphs');
-            request=transaction.objectStore('combis').openCursor();
+            request=transaction.objectStore('sets').openCursor();
             request.onsuccess=function(event) {
                 cursor=event.target.result;
                 if(cursor) {  // SAVE WITHOUT id's ????
-                    console.log('combi: '+cursor.value.name);
+                    console.log('set: '+cursor.value.name);
                     delete cursor.value.id; // SHOULDN'T NEED THIS
-                    data.combis.push(cursor.value);
+                    data.sets.push(cursor.value);
                     cursor.continue();
                 }
                 else {
-                    console.log('save '+data.combis.length+' combis');
+                    console.log('save '+data.sets.length+' sets');
                 }
             }
         }
@@ -365,14 +364,13 @@ id('confirmSave').addEventListener('click',function() {
     		document.body.appendChild(a);
 			a.click();
    			document.body.removeChild(img);
-   			prompt('file '+fileName+" saved to downloads folder",3);
+   			hint('file '+fileName+" saved to downloads folder");
     	}
     	img.src='data:image/svg+xml,'+encodeURIComponent(xml);
     }
     showDialog('saveDialog',false);
 });
 id('zoomInButton').addEventListener('click',function() {
-    prompt('ZOOM IN');
     zoom*=2;
     console.log('zoom in to '+zoom);
     w=Math.round(dwg.w*scale/zoom);
@@ -385,7 +383,6 @@ id('zoomInButton').addEventListener('click',function() {
     // id('zoom').innerHTML=zoom;
 });
 id('zoomOutButton').addEventListener('click',function() {
-    prompt('ZOOM OUT');
     if(zoom<zoomLimit) return;
     zoom/=2;
     console.log('zoom out to '+zoom);
@@ -399,40 +396,37 @@ id('zoomOutButton').addEventListener('click',function() {
     // id('zoom').innerHTML=zoom;
 });
 id('extentsButton').addEventListener('click',function() {
-    prompt('ZOOM ALL');
     reset();
 });
 id('panButton').addEventListener('click',function() {
-    // console.log('pan mode');
     mode='pan';
-    // prompt('PAN');
 });
 console.log('zoom; '+zoom+' w: '+w+' h: '+h);
 // DRAWING TOOLS
-id('sketchButton').addEventListener('click',function() {
-    mode='sketch';
-    prompt('SKETCH: drag from start',3);
+id('curveButton').addEventListener('click',function() {
+    mode='curve';
+    hint('CURVE: drag from start',3);
 });
 id('lineButton').addEventListener('click',function() {
     mode='line';
-    showSizes(true,'LINE: drag from start');
+    showInfo(true,'LINE','drag from start');
 });
 id('boxButton').addEventListener('click',function() {
     mode='box';
     rad=0;
-    showSizes(true,'BOX: drag from corner');
+    showInfo(true,'BOX',layer,'drag from corner');
 });
 id('ovalButton').addEventListener('click',function() { // OVAL/CIRCLE
     mode='oval';
-    showSizes(true,'OVAL: drag to size');
+    showInfo(true,'OVAL','drag to size');
 })
 id('arcButton').addEventListener('click', function() {
    mode='arc';
-   showSizes(true,'ARC: drag from start');
+   showInfo(true,'ARC','drag from start');
 });
 id('textButton').addEventListener('click',function() {
     mode='text';
-    prompt('TEXT: tap at start');
+    hint('TEXT: tap at start');
 });
 id('textOKbutton').addEventListener('click',function() {
 	var text=id('text').value;
@@ -445,7 +439,7 @@ id('textOKbutton').addEventListener('click',function() {
         console.log('add text '+text);
         var graph={}
 	    graph.type='text';
-	    graph.text=content;
+	    graph.text=text;
 	    graph.x=x0;
         graph.y=y0;
         graph.spin=0;
@@ -462,8 +456,7 @@ id('textOKbutton').addEventListener('click',function() {
 })
 id('dimButton').addEventListener('click',function() {
    mode='dimStart';
-   // id('tools').style.display='none';
-   prompt('DIMENSION: tap start node');
+   hint('DIMENSION: tap start node');
 });
 id('confirmDim').addEventListener('click',function() {
     dim.dir=document.querySelector('input[name="dimDir"]:checked').value;
@@ -474,15 +467,15 @@ id('confirmDim').addEventListener('click',function() {
     id('blueDim').setAttribute('x2',(dim.dir=='v')? dim.x1:dim.x2);
     id('blueDim').setAttribute('y2',(dim.dir=='h')? dim.y1:dim.y2);
     id('guides').style.display='block';
-    prompt('DIMENSION: drag to position');
+    hint('DIMENSION: drag to position');
     mode='dimPlace';
 });
-id('combiButton').addEventListener('click',function() {
-    showDialog('combiDialog',true);
+id('setButton').addEventListener('click',function() {
+    showDialog('setDialog',true);
 });
 id('imageButton').addEventListener('click',function() {
 	console.log('IMAGE');
-	prompt('IMAGE: tap at location');
+	hint('IMAGE: tap at location');
 	mode='image';
 });
 id('imageChooser').addEventListener('change',function(e) {
@@ -523,21 +516,21 @@ id('imageChooser').addEventListener('change',function(e) {
     }
     showDialog('imageDialog',false);
 });
-id('combiList').addEventListener('change',function() {
+id('setList').addEventListener('change',function() {
     console.log('choose '+event.target.value);
-    combiID=event.target.value;
-    console.log('combi '+combiID+' picked');
-    mode='combi';
-    prompt('COMBI: tap to place');
-    id('combiList').value=null; // clear selection for next time
-    showDialog('combiDialog',false);
+    setID=event.target.value;
+    console.log('set '+setID+' picked');
+    mode='set';
+    hint('SET: tap to place');
+    id('setList').value=null; // clear selection for next time
+    showDialog('setDialog',false);
 });
 // EDIT TOOLS
 id('addButton').addEventListener('click',function() { // add point after selected point in line/shape
     var t=type(element);
     if((t!='line')&&(t!='shape')) return; // can only add points to lines/shapes
     console.log('add point');
-    prompt('ADD POINT: tap on previous point');
+    hint('ADD POINT: tap on previous point');
     mode='addPoint';
     // showDialog('pointDialog',false);
 });
@@ -546,7 +539,7 @@ id('deleteButton').addEventListener('click',function() {
     if((t=='line')||(t=='shape')) {
         var points=element.points;
         if(selectedPoints.length>0) {  // remove >1 selected points
-            prompt('REMOVE selected points');
+            hint('REMOVE selected points');
             var pts='';
             for(var i=0;i<points.length;i++) {
                 if(selectedPoints.indexOf(i)>=0) continue;
@@ -559,13 +552,12 @@ id('deleteButton').addEventListener('click',function() {
         else { // remove individual point
             var n=points.length;
             if(((t=='line')&&(n>2))||((t=='shape')&&(n>3))) { // if minimum number of nodes, just remove element
-                prompt('REMOVE: tap circle) handle to remove element or a disc handle to remove a node');
+                hint('REMOVE: tap circle) handle to remove element or a disc handle to remove a node');
                 mode='removePoint'; // remove whole element or one point
                 return;
             }
         }
     }
-    prompt('REMOVE');
     for(var i=0;i<selection.length;i++) console.log('delete '+selection[i]);
     console.log('element is '+elID);
     showDialog('removeDialog',true);
@@ -586,10 +578,9 @@ id('confirmRemove').addEventListener('click',function() { // complete deletion
 id('backButton').addEventListener('click',function() {
     var previousElement=element.previousSibling;
     if(previousElement===null) {
-        prompt('already at back');
+        hint('already at back');
         return;
     }
-    else prompt('PUSH BACK');
     var previousID=previousElement.getAttribute('id');
     id('dwg').insertBefore(element,previousElement); // move back in drawing...
     swopGraphs(previousID,element.id); // ...and in database
@@ -597,10 +588,9 @@ id('backButton').addEventListener('click',function() {
 id('forwardButton').addEventListener('click',function() {
     var nextElement=element.nextSibling;
     if(nextElement===null) {
-        prompt('already at front');
+        hint('already at front');
         return;
     }
-    else prompt('PULL FORWARD');
     var nextID=nextElement.getAttribute('id');
     id('dwg').insertBefore(nextElement,element); // bring forward in drawing.
     swopGraphs(element.id,nextID); // ...and in database
@@ -700,7 +690,7 @@ id('confirmSpin').addEventListener('click',function() {
                 oy=parseInt(element.getAttribute('y'))+parseInt(element.getAttribute('height'))/2;
                 break;
             case 'text':
-            case 'combi':
+            case 'set':
                 ox=parseInt(element.getAttribute('x'));
                 oy=parseInt(element.getAttribute('y'));
                 break;
@@ -744,9 +734,7 @@ id('flipButton').addEventListener('click',function() {
 id('flipOptions').addEventListener('click',function() {
     var opt=Math.floor((event.clientX-parseInt(id('flipDialog').offsetLeft)+5)/32);
     console.log('click on '+opt); // 0: horizontal; 1: vertical
-    // var copy=id('copy').checked;
     var axis={};
-    // var box=null;
     var elNodes=null;
     var el=id(selection[0]);
     var box=getBounds(el);
@@ -783,7 +771,6 @@ id('flipOptions').addEventListener('click',function() {
             case 'line': // reverse x-coord of each point and each node
             case 'shape':
                 var points=el.points;
-                // if(copy) var pts=''; // new points list as string
                 for(i=0;i<points.length;i++) {
                     if(opt<1) {
                         dx=points[i].x-axis.x;
@@ -796,69 +783,10 @@ id('flipOptions').addEventListener('click',function() {
                         else points[i].y=axis.y-dy;
                     }
                 }
-                /* NO FLIP & COPY
-                console.log('pts: '+pts);
-                if(copy) {
-                    console.log('create copy of element '+elID);
-                    var g={}; // new graph for copy/copies
-                    g.type=type(el); // line or shape
-                    g.points=pts;
-                    g.spin=0;
-                    g.stroke=el.getAttribute('stroke');
-                    g.lineW=el.getAttribute('stroke-width');
-                    g.lineStyle=getLineStyle(el);
-                    g.fill=el.getAttribute('fill');
-                    var o=el.getAttribute('fill-opacity');
-                    g.opacity=(o)?o:1;
-                    addGraph(g);
-                }
-                else {
-                */
                 updateGraph(elID,['points',el.getAttribute('points')]);
                 refreshNodes(el);
-                // }
                 break;
             case 'box':
-            	/*
-                if(copy) {
-                    var g={}; // new graph for copy/copies
-                    g.type='box';
-                    g.width=parseInt(el.getAttribute('width'));
-                    g.height=parseInt(el.getAttribute('height'));
-                    var left=parseInt(el.getAttribute('x'));
-                    var top=parseInt(el.getAttribute('y'));
-                    var right=left+g.width;
-                    var bottom=top+g.height;
-                    console.log('box '+left+'-'+right+'x'+top+'-'+bottom);
-                    if(opt<1) { // mirror copy left or right...
-                        dx=right-axis.x;
-                        g.x=axis.x-dx;
-                        g.y=top;
-                    }
-                    else { // ...above or below
-                        g.x=left;
-                        dy=bottom-axis.y;
-                        g.y=axis.y-dy;
-                    }
-                    var request=db.transaction('graphs').objectStore('graphs').get(Number(el.id));
-                    request.onsuccess=function(event) {
-                        var graph=request.result;
-                        console.log('retrieved graph '+graph.type);
-                        g.radius=graph.radius;
-                        g.stroke=graph.stroke;
-                        g.lineW=graph.lineW;
-                        g.lineStyle=graph.lineStyle;
-                        g.fill=graph.fill;
-                        g.opacity=graph.opacity;
-                        addGraph(g);
-                    }
-                    request.onerror=function(event) {
-                        console.log('get failed');
-                    }
-                }
-                else {
-                */
-                // no action if flip in-situ unless has spin
                 var spin=parseInt(el.getAttribute('spin'));
                 if(spin!=0) {
                         spin*=-1;
@@ -866,43 +794,8 @@ id('flipOptions').addEventListener('click',function() {
                         setTransform(el);
                         updateGraph(elID['spin',spin]);
                     }
-                //}
                 break;
             case 'oval':
-                /*
-                if(copy) {
-                    var g={};
-                    g.type='oval';
-                    if(opt<1) { // mirror copy left or right...
-                        dx=parseInt(el.getAttribute('cx'))-axis.x;
-                        g.cx=axis.x-dx;
-                        g.cy=parseInt(el.getAttribute('cy'));
-                    }
-                    else { // ...above or below
-                        g.cx=parseInt(el.getAttribute('cx'));
-                        dy=parseInt(el.getAttribute('cy'))-axis.y;
-                        g.cy=axis.y-dy;
-                    }
-                    var request=db.transaction('graphs').objectStore('graphs').get(Number(el.id));
-                    request.onsuccess=function(event) {
-                        var graph=request.result;
-                        console.log('retrieved graph '+graph.type);
-                        g.rx=graph.rx;
-                        g.ry=graph.ry;
-                        g.stroke=graph.stroke;
-                        g.lineW=graph.lineW;
-                        g.lineStyle=graph.lineStyle;
-                        g.fill=graph.fill;
-                        g.opacity=graph.opacity;
-                        addGraph(g);
-                    }
-                    request.onerror=function(event) {
-                        console.log('get failed');
-                    }
-                }
-                else {
-                */
-                // no action if flip in-situ unless has spin
                 var spin=parseInt(el.getAttribute('spin'));
                 if(spin!=0) {
                         spin*=-1;
@@ -910,58 +803,10 @@ id('flipOptions').addEventListener('click',function() {
                         setTransform(el);
                         updateGraph(elID['spin',spin]);
                     }
-                //}
                 break;
             case 'arc':
                 var d=el.getAttribute('d');
                 getArc(d);
-                /*
-                if(copy) {
-                    g={};
-                    g.type='arc';
-                    if(opt<1) { // mirror copy left or right...
-                        dx=arc.cx-axis.x;
-                        g.cx=axis.x-dx;
-                        g.cy=arc.cy;
-                        dx=arc.x1-axis.x;
-                        g.x1=axis.x-dx;
-                        g.y1=arc.y1;
-                        dx=arc.x2-axis.x;
-                        g.x2=axis.x-dx;
-                        g.y2=arc.y2;
-                    }
-                    else { // ...above or below
-                        g.cx=arc.cx;
-                        dy=arc.cy-axis.y;
-                        g.cy=axis.y-dy;
-                        g.x1=arc.x1;
-                        dy=arc.y1-axis.y;
-                        g.y1=axis.y-dy;
-                        g.x2=arc.x2;
-                        dy=arc.y2-axis.y;
-                        g.y2=axis.y-dy;
-                    }
-                    g.r=arc.r;
-                    g.major=arc.major;
-                    g.sweep=(arc.sweep<1)? 1:0;
-                    var request=db.transaction('graphs').objectStore('graphs').get(Number(el.id));
-                    request.onsuccess=function(event) {
-                        var graph=request.result;
-                        console.log('retrieved graph '+graph.type);
-                        g.stroke=graph.stroke;
-                        g.lineW=graph.lineW;
-                        g.lineStyle=graph.lineStyle;
-                        g.fill=graph.fill;
-                        g.opacity=graph.opacity;
-                        addGraph(g);
-                    }
-                    request.onerror=function(event) {
-                        console.log('get failed');
-                    }
-                }
-                else {
-                */
-                // flip in-situ
                 if(opt<1) { // flip left-right
                         dx=arc.cx-axis.x;
                         arc.cx=axis.x-dx;
@@ -983,44 +828,8 @@ id('flipOptions').addEventListener('click',function() {
                 d="M"+arc.cx+","+arc.cy+" M"+arc.x1+","+arc.y1+" A"+arc.r+","+arc.r+" 0 "+arc.major+","+arc.sweep+" "+arc.x2+","+arc.y2;
                 element.setAttribute('d',d);
                 refreshNodes(el);
-                //}
                 break;
             case 'text':
-            	/*
-                if(copy) {
-                    var g={};
-                    g.type='text';
-                    // box=getBounds(el);
-                    if(opt<1) { // mirror copy left or right...
-                        dx=parseInt(el.getAttribute('x'))-axis.x;
-                        g.x=axis.x-dx;
-                        g.y=parseInt(el.getAttribute('y'));
-                        g.flip=parseInt(el.getAttribute('flip'))^1;
-                    }
-                    else { // ...above or below
-                        g.x=parseInt(el.getAttribute('x'));
-                        dy=parseInt(el.getAttribute('y'))-axis.y;
-                        g.y=axis.y-dx;
-                        g.flip=parseInt(el.getAttribute('flip'))^2;
-                    }
-                    var request=db.transaction('graphs').objectStore('graphs').get(Number(elID));
-                    request.onsuccess=function(event) {
-                        var graph=request.result;
-                        console.log('retrieved graph '+graph.type);
-                        g.text=graph.text;
-                        g.textSize=graph.textSize;
-                        g.textStyle=graph.textStyle;
-                        g.fill=graph.fill;
-                        g.opacity=graph.opacity;
-                        addGraph(g);
-                    }
-                    request.onerror=function(event) {
-                        console.log('get failed');
-                    }
-                }
-                else {
-                */
-                // flip in-situ
                 showDialog('textDialog',false);
                 var flip=parseInt(el.getAttribute('flip'));
                 if(opt<1) { // flip left-right
@@ -1037,42 +846,9 @@ id('flipOptions').addEventListener('click',function() {
                 el.setAttribute('flip',flip);
                 setTransform(el);
                 updateGraph(elID,['flip',flip]);
-                //}
                 break;
-            case 'combi':
-                /*
-                if(copy) {
-                    var g={};
-                    g.type='combi';
-                    if(opt<1) { // mirror copy left or right...
-                        g.x=axis.x-dx;
-                        g.y=parseInt(el.getAttribute('y'));
-                        dx=parseInt(el.getAttribute('x'))-axis.x;
-                        g.flip=parseInt(el.getAttribute('flip'))^1;
-                    }
-                    else { // ...above or below
-                        g.x=parseInt(el.getAttribute('x'));
-                        dy=parseInt(el.getAttribute('y'))-axis.y;
-                        g.flip=parseInt(el.getAttribute('flip'))^2; // toggle vertical flip
-                    }
-                    var request=db.transaction('graphs').objectStore('graphs').get(Number(elID));
-                    request.onsuccess=function(event) {
-                        var graph=request.result;
-                        console.log('retrieved graph '+graph.type+' combi no. '+graph.no);
-                        g.no=graph.no;
-                        g.width=graph.width;
-                        g.height=graph.height;
-                        addGraph(g);
-                    }
-                    request.onerror=function(event) {
-                        console.log('get failed');
-                    }
-                }
-                else {
-                */
-                // flip in-situ
+            case 'set':
                 var flip=parseInt(el.getAttribute('flip'));
-                // console.log(elNodes.length+' nodes');
                 if(opt<1) { // flip left-right
                         console.log('current flip: '+flip);
                         flip^=1; // toggle horizontal flip;
@@ -1087,7 +863,6 @@ id('flipOptions').addEventListener('click',function() {
                 refreshNodes(el);
                 w=parseInt(el.getAttribute('x'));
                 h=parseInt(el.getAttribute('y'));
-                // var s=parseInt(el.getAttribute('scale'));
                 var hor=flip&1;
                 var ver=flip&2;
                 var t='translate('+(hor*w)+','+(ver*h/2)+') ';
@@ -1200,7 +975,7 @@ id('copyButton').addEventListener('click',function() {
             }
             g.spin=element.getAttribute('spin');
             switch(g.type) {
-            	case 'sketch':
+            	case 'curve':
             		console.log(element.points.length+' points to copy');
             		g.points=[]; // array of points
 	        		for(var j=0;j<element.points.length;j++) g.points.push({x:element.points[j].x,y:element.points[j].y});
@@ -1267,7 +1042,7 @@ id('doubleButton').addEventListener('click',function() {
     console.log(selection.length+' elements selected: '+elID);
     if(selection.length!=1) return; // can only double single selected...
     var t=type(element); // ...line, shape, box, oval or arc elements
-    if((t=='text')||(t=='dim')||(t=='combi')||(t=='anchor')) return;
+    if((t=='text')||(t=='dim')||(t=='set')||(t=='anchor')) return;
     showDialog('doubleDialog',true);
 });
 id('confirmDouble').addEventListener('click',function() {
@@ -1535,6 +1310,7 @@ id('confirmDouble').addEventListener('click',function() {
     graph.stroke=element.getAttribute('stroke');
     graph.lineW=element.getAttribute('stroke-width');
     graph.lineStyle=getLineStyle(element);
+    graph.fillType=element.getAttribute('fillType');
     graph.fill=element.getAttribute('fill');
     n=element.getAttribute('fill-opacity');
     if(n) graph.opacity=n;
@@ -1563,7 +1339,7 @@ id('confirmRepeat').addEventListener('click',function() {
             	if(i<1 && j<1) continue; // skip in-place duplicate
             	var g={};
             	g.type=type(el);
-            	if(g.type!='combi') { // combis don't have style
+            	if(g.type!='set') { // sets don't have style
                 	g.stroke=el.getAttribute('stroke');
                 	g.lineW=el.getAttribute('stroke-width');
                 	g.lineStyle=getLineStyle(el);
@@ -1625,7 +1401,7 @@ id('confirmRepeat').addEventListener('click',function() {
                     	g.textStyle=(style=='italic')?'italic':'fine';
                     	if(el.getAttribute('font-weight')=='bold') g.textStyle='bold';
                     	break;
-                	case 'combi':
+                	case 'set':
                     	g.x=Number(el.getAttribute('x'))+(i*dH);
                     	g.y=Number(el.getAttribute('y'))+(j*dV);
                     	g.flip=Number(el.getAttribute('flip'));
@@ -1650,22 +1426,22 @@ id('confirmFillet').addEventListener('click',function() {
     element.setAttribute('rx',r);
     updateGraph(elID,['radius',r]);
     showDialog('filletDialog',false);
-    showSizes(false);
+    showInfo(false);
     cancel();
 });
 id('anchorButton').addEventListener('click',function() {
     mode='anchor';
-    prompt('ANCHOR: tap a node');
+    hint('ANCHOR: tap a node');
 });
-id('combineButton').addEventListener('click',function() {
-    id('combiName').value='';
-    if((selection.length>1)&&anchor) showDialog('combineDialog',true);
-    else alert('Please place an anchor for the combi');
+id('joinButton').addEventListener('click',function() {
+    id('setName').value='';
+    if((selection.length>1)&&anchor) showDialog('joinDialog',true);
+    else alert('Please place an anchor for the set');
 });
-id('confirmCombine').addEventListener('click',function() {
-    var name=id('combiName').value;
+id('confirmJoin').addEventListener('click',function() {
+    var name=id('setName').value;
     if(!name) {
-        alert('Enter a name for the combi');
+        alert('Enter a name for the set');
         return;
     }
     var ax=parseInt(id('anchor').getAttribute('cx'));
@@ -1676,7 +1452,7 @@ id('confirmCombine').addEventListener('click',function() {
         el=id(selection[i]);
         var t=type(el);
         console.log('add '+t+' element?');
-        if((t=='dim')||(t=='combi')) continue; // don't include dimensions or combis
+        if((t=='dim')||(t=='set')) continue; // don't include dimensions or sets
         switch(type(el)) {
             case 'line':
                 var points=el.points;
@@ -1733,8 +1509,9 @@ id('confirmCombine').addEventListener('click',function() {
         console.log('JSON so far: '+json);
     }
     json+='"}';
-    console.log('combi JSON: '+json);
+    console.log('set JSON: '+json);
     download(json,name+'.json','text/plain');
+    showDialog('joinDialog',false);
 });
 // STYLES
 id('line').addEventListener('click',function() {
@@ -2023,7 +1800,7 @@ id('graphic').addEventListener('pointerdown',function(e) {
     console.log('tap on '+val+' x,y:'+x+','+y+' x0,y0: '+x0+','+y0);
     if(val=='anchor')  { // move selected elements using anchor
         mode='move';
-        prompt('drag ANCHOR to MOVE selection');
+        hint('drag ANCHOR to MOVE selection');
         re('member');
     }
     var holder=event.target.parentNode.id;
@@ -2031,7 +1808,7 @@ id('graphic').addEventListener('pointerdown',function(e) {
     if((holder=='selection')&&(mode!='anchor')) { // click on a blue box to move multiple selectin
         console.log('move group selection');
         mode='move';
-        prompt('drag to MOVE selection');
+        hint('drag to MOVE selection');
         re('member');
     }
     else if(holder=='handles') { // handle
@@ -2065,9 +1842,9 @@ id('graphic').addEventListener('pointerdown',function(e) {
             }
             console.log('move using node '+node);
             mode='move';
-            prompt('drag to MOVE');
+            hint('drag to MOVE');
             switch(type(element)) {
-            	case 'sketch':
+            	case 'curve':
                     x0=handle.getAttribute('x');
                     y0=handle.getAttribute('y');
                     console.log('handle at '+x0+','+y0);
@@ -2145,9 +1922,9 @@ id('graphic').addEventListener('pointerdown',function(e) {
                     var spin=element.getAttribute('transform');
                     id('blueLine').setAttribute('transform',spin);
                     id('guides').style.display='block';
-                    prompt('MOVE DIMENSION (UP/DOWN)');
+                    hint('MOVE DIMENSION (UP/DOWN)');
                     break;
-                case 'combi':
+                case 'set':
                     x0=element.getAttribute('x');
                     y0=element.getAttribute('y');
                 case 'box':
@@ -2221,7 +1998,7 @@ id('graphic').addEventListener('pointerdown',function(e) {
                 cancel();
                 return;
             }
-            else prompt('drag to SIZE');
+            else hint('drag to SIZE');
             console.log('size using node '+node);
             dx=dy=0;
             switch(type(element)) {
@@ -2277,7 +2054,7 @@ id('graphic').addEventListener('pointerdown',function(e) {
     }
     console.log('mode: '+mode);
     switch(mode) {
-    	case 'sketch':
+    	case 'curve':
             blueline=id('bluePolyline');
             var point=id('svg').createSVGPoint();
             point.x=x;
@@ -2302,24 +2079,24 @@ id('graphic').addEventListener('pointerdown',function(e) {
             blueline.points.appendItem(point);
             refreshNodes(blueline); // set blueline nodes to match new point
             id('guides').style.display='block';
-            prompt('LINES: drag to next point; tap twice to end lines or on start to close shape');
+            hint('LINES: drag to next point; tap twice to end lines or on start to close shape');
             break;
         case 'box':
             id('blueBox').setAttribute('x',x0);
             id('blueBox').setAttribute('y',y0);
             id('guides').style.display='block';
-            prompt('BOX: drag to size');
+            hint('drag to size');
             break;
         case 'oval':
             id('blueOval').setAttribute('cx',x0);
             id('blueOval').setAttribute('cy',y0);
             id('guides').style.display='block';
-            prompt('OVAL: drag to size');
+            hint('drag to size');
             break;
         case 'arc':
             arc.x1=x0;
             arc.y1=y0;
-            prompt('ARC: drag to centre');
+            hint('ARC: drag to centre');
             id('blueLine').setAttribute('x1',arc.x1);
             id('blueLine').setAttribute('y1',arc.y1);
             id('blueLine').setAttribute('x2',arc.x1);
@@ -2336,11 +2113,11 @@ id('graphic').addEventListener('pointerdown',function(e) {
     		if(e.target!=textDialog) console.log('MISS');
     		cancel();
     		break;
-        case 'combi':
-            console.log('place combi '+combiID+' at '+x0+','+y0);
+        case 'set':
+            console.log('place set '+setID+' at '+x0+','+y0);
             var graph={};
-	        graph.type='combi';
-            graph.name=combiID;
+	        graph.type='set';
+            graph.name=setID;
             graph.x=x0;
             graph.y=y0;
             graph.spin=0;
@@ -2360,11 +2137,10 @@ id('graphic').addEventListener('pointerdown',function(e) {
             selectionBox.x=x0;
             selectionBox.y=y0;
             selectionBox.w=selectionBox.h=0;
-            // showSizes(true);
     }
     event.stopPropagation();
     console.log('exit pointer down code');
-    if(mode!='combi') id('graphic').addEventListener('pointermove',drag);
+    if(mode!='set') id('graphic').addEventListener('pointermove',drag);
 });
 // DRAWING POINTER MOVE
 function drag(event) {
@@ -2391,7 +2167,7 @@ function drag(event) {
         id('bluePolyline').points[node].y=y;
     }
     else switch(mode) {
-    	case 'sketch':
+    	case 'curve':
             dx=x-x0;
             dy=y-y0;
             var d=Math.sqrt(dx*dx+dy*dy);
@@ -2653,7 +2429,7 @@ id('graphic').addEventListener('pointerup',function(e) {
     if(mode.startsWith('movePoint')) { // move polyline/polygon point
         id('handles').innerHTML='';
         console.log('move point '+node+' on '+type(element));
-        if(type(element)=='sketch') {
+        if(type(element)=='curve') {
             var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
 	        var request=graphs.get(Number(element.id));
 	        request.onsuccess=function(event) {
@@ -2664,9 +2440,9 @@ id('graphic').addEventListener('pointerup',function(e) {
 	            request=graphs.put(graph);
 	            request.onsuccess=function(event) {
 			        console.log('graph '+graph.id+' updated');
-			        var d=sketchPath(graph.points);
+			        var d=curvePath(graph.points);
 			        console.log('new path: '+d);
-			        id(graph.id).setAttribute('d',sketchPath(graph.points)); // redraw sketch element path
+			        id(graph.id).setAttribute('d',curvePath(graph.points)); // redraw curve element path
 		        };
 	            request.onerror=function(event) {
 		            console.log("PUT ERROR updating graph "+graph.id);
@@ -2875,8 +2651,8 @@ id('graphic').addEventListener('pointerup',function(e) {
             if((Math.abs(x-x0)<snapD)&&(Math.abs(y-y0)<snapD)) mode='select';
             // console.log('mode is '+mode);
             break;
-        case 'sketch':
-            console.log('end sketching');
+        case 'curve':
+            console.log('end curve');
             var points=id('bluePolyline').points;
             var point=id('svg').createSVGPoint(); // add end point
                 point.x=x;
@@ -2885,7 +2661,7 @@ id('graphic').addEventListener('pointerup',function(e) {
             console.log(points.length+' points');
             // create smooth curved path
             var graph={};
-	        graph.type='sketch';
+	        graph.type='curve';
 	        graph.points=[]; // array of points
 	        for(var i=0;i<points.length-1;i++) graph.points.push({x:points[i].x,y:points[i].y});
 	        graph.spin=0;
@@ -3115,10 +2891,10 @@ id('graphic').addEventListener('pointerup',function(e) {
                 dim.n1=snap.n;
                 dim.dir=null;
                 mode='dimEnd';
-                prompt('DIMENSION: tap end node');
+                hint('DIMENSION: tap end node');
             break;
             }
-            else prompt('DIMENSION: tap start node')
+            else hint('DIMENSION: tap start node')
             break;
         case 'dimEnd':
             if(snap) {
@@ -3135,13 +2911,13 @@ id('graphic').addEventListener('pointerup',function(e) {
                     id('blueDim').setAttribute('x2',dim.x2);
                     id('blueDim').setAttribute('y2',dim.y2);
                     id('guides').style.display='block';
-                    prompt('DIMENSION: drag to position');
+                    hint('DIMENSION: drag to position');
                     mode='dimPlace';
                 }
                 else showDialog('dimDialog',true);
                 console.log('dimension direction: '+dim.dir);
             }
-            else prompt('Tap on a node at dimension end-point');
+            else hint('Tap on a node at dimension end-point');
             break;
         case 'dimPlace':
             var graph={};
@@ -3223,7 +2999,7 @@ id('graphic').addEventListener('pointerup',function(e) {
                 console.log('anchor placed');
                 setButtons();
             }
-            else prompt('Tap on a node to place anchor');
+            else hint('Tap on a node to place anchor');
             break;
         case 'pointEdit':
             console.log('SELECT POINTS');
@@ -3270,7 +3046,6 @@ id('graphic').addEventListener('pointerup',function(e) {
                     if((box.y+box.height)>(selectionBox.y+selectionBox.h)) continue;
                     selection.push(items[i].id); // add to selection if passes tests
                     console.log('select '+items[i].id);
-                    // if(type(el)=='combi') continue; // no blue box for combis
                     var html="<rect x='"+box.x+"' y='"+box.y+"' width='"+box.width+"' height='"+box.height+"' ";
                     html+="stroke='none' fill='blue' fill-opacity='0.25' el='"+items[i].id+"'/>";
                     id('selection').innerHTML+=html;
@@ -3302,7 +3077,7 @@ id('graphic').addEventListener('pointerup',function(e) {
                     return;
                 }
             }
-            showSizes(false);
+            showInfo(false);
         case 'edit':
             var el=event.target;
             console.log('pointer up on element '+el.id);
@@ -3324,7 +3099,7 @@ id('graphic').addEventListener('pointerup',function(e) {
                 }
             }
             else while((el.parentNode.id!='dwg')&&(el.parentNode.id!='drawing')) {
-                el=el.parentNode; // combis have elements within groups in svg container
+                el=el.parentNode; // sets have elements within groups in svg container
             }
             console.log('parent is '+el.parentNode.id);
             if(el.parentNode.id=='dwg') hit=el.id;
@@ -3590,6 +3365,12 @@ id('spin').addEventListener('change',function() {
     setTransform(element);
     refreshNodes(element);
 });
+id('elementLayer').addEventListener('click',function() {
+	console.log('display layer choice');
+	for(var i=0;i<10;i++) {id('choice'+i).addEventListener('click',setLayer);}
+	id('choice'+layer).checked=true;
+	id('layerChooser').style.display='block';
+});
 id('undoButton').addEventListener('click',function() {
     re('call'); // recall & reinstate previous positions/points/sizes/spins/flips
 });
@@ -3632,7 +3413,7 @@ function cancel() { // cancel current operation and return to select mode
         id('anchor').remove();
         anchor=false;
     }
-    showSizes(false);
+    showInfo(false);
     showEditTools(false);
     id('textDialog').style.display='none';
     setStyle(); // set styles to defaults
@@ -3644,6 +3425,38 @@ function checkDims(el) {
             refreshDim(dims[i]); // adjust and redraw linked dimension
         }
     }
+}
+function curvePath(pts) {
+	console.log('get path for points: '+pts);
+	var d='M'+pts[0].x+','+pts[0].y; // move to point 0
+	if(pts.length<3) d+=' L'+pts[1].x+','+pts[1].y; // 2 points - short straight line
+	else {
+	    var n=7; // vary n to adjust smoothness of curve - 7 seems a good compromise
+	    var c1={}; // control points
+	    var c2={};
+	    dx=pts[2].x-pts[0].x; // position control points parallel to chord of flanking points
+	    dy=pts[2].y-pts[0].y; // this is for point 1
+	    c2.x=pts[1].x-dx/n; // first control point
+	    c2.y=pts[1].y-dy/n;
+	    d+=' Q'+c2.x+','+c2.y+' '+pts[1].x+','+pts[1].y; // first segment - quadratic curve
+	    // console.log('point 1 path: '+d);
+	    var i=2;
+	    while(i<pts.length-1) { // intermediate segments
+	        c1.x=pts[i-1].x+dx/n; // reflect previous control point
+	        c1.y=pts[i-1].y+dy/n;
+	        dx=pts[i+1].x-pts[i-1].x;
+	        dy=pts[i+1].y-pts[i-1].y;
+	        c2.x=pts[i].x-dx/n; // next control point
+	        c2.y=pts[i].y-dy/n;
+	        d+=' C'+c1.x+','+c1.y+' '+c2.x+','+c2.y+' '+pts[i].x+','+pts[i].y; // cubic curves
+	        // console.log('point '+i+': '+d);
+	        i++
+	    }
+	    c1.x=pts[i-1].x+dx/n;
+	    c1.y=pts[i-1].y+dy/n;
+	    d+=' S'+c1.x+','+c1.y+' '+pts[i].x+','+pts[i].y; // final segment - smooth cubic curve
+	}
+	return d;
 }
 function download(content,fileName,contentType) {
 	console.log("save as "+fileName);
@@ -3703,6 +3516,15 @@ function getLineStyle(el) {
     else if(dash==lw) return'dotted';
     else return 'solid';
 }
+function hint(text) {
+    console.log('HINT '+text);
+    id('hint').innerHTML=text; //display text for 3 secs
+    var h=(id('info').style.height<1);
+    id('info').style.height=(h+24)+'px';
+    setTimeout(function(){id('info').style.height=h+'px'},10000);
+    // id('hint').style.display='block';
+    // setTimeout(function(){id('hint').style.display='none'},10000);
+}
 function id(el) {
 	return document.getElementById(el);
 }
@@ -3733,8 +3555,8 @@ function initialise() {
     id('sizeDisc').setAttribute('r',handleR);
     id('selectionBox').setAttribute('stroke-dasharray',(scale+' '+scale+' '));
     console.log('set drawings size to '+dwg.w+'x'+dwg.h);
-    id('paper').setAttribute('width',(dwg.w+'mm'));
-    id('paper').setAttribute('height',(dwg.h+'mm'));
+    //id('paper').setAttribute('width',(dwg.w+'mm'));
+    //id('paper').setAttribute('height',(dwg.h+'mm'));
     id('svg').setAttribute('width',(dwg.w+'mm'));
     id('svg').setAttribute('height',(dwg.h+'mm'));
     w=dwg.w*scale; // viewBox is to scale
@@ -3746,7 +3568,7 @@ function initialise() {
         // h/=2;
     }
     console.log('viewbox: '+w+'x'+h);
-    id('paper').setAttribute('viewBox',"0 0 "+w+" "+h);
+    //id('paper').setAttribute('viewBox',"0 0 "+w+" "+h);
     id('paperSheet').setAttribute('width',w);
     id('paperSheet').setAttribute('height',h);
     /*
@@ -3786,27 +3608,24 @@ function load() {
 	    }
     };
     console.log('all graphs loaded');
-    id('combiList').innerHTML="<option onclick='prompt(\'select a combi\');' value=null>select a combi</option>"; // rebuild combiList
-    var request=db.transaction('combis').objectStore('combis').openCursor();
+    id('setList').innerHTML="<option onclick='hint(\'select a set\');' value=null>select a set</option>"; // rebuild setList
+    var request=db.transaction('sets').objectStore('sets').openCursor();
     request.onsuccess = function(event) {  
 	    var cursor=event.target.result;  
         if(cursor) {
-            var combi=cursor.value;
-            // GET COMBI NAME AND ADD TO combiList AS AN OPTION
-            var name=combi.name;
-            // var s=(combi.nts>0)?scale:1;
-            // if(combi.nts>0) name='NTS'+name;
-            console.log('add combi '+name);
-            var html="<g id='"+name+"'>"+combi.svg+"</g>"; // TRY WITHOUT ax,ay
-            // var html="<g id='"+name+"' ax='"+combi.ax+"' ay='"+combi.ay+"'>"+combi.svg+"</g>";
-            id('combis').innerHTML+=html; // copy combi svg into <defs>...
+            var set=cursor.value;
+            // GET SET NAME AND ADD TO setList AS AN OPTION
+            var name=set.name;
+            console.log('add set '+name);
+            var html="<g id='"+name+"'>"+set.svg+"</g>"; // TRY WITHOUT ax,ay
+            id('sets').innerHTML+=html; // copy set svg into <defs>...
             html="<option value="+name+">"+name+"</option>";
-            id('combiList').innerHTML+=html; //...and combi name into combiList
+            id('setList').innerHTML+=html; //...and set name into setList
             console.log('added');
 	    	cursor.continue();  
         }
 	    else {
-		    console.log("No more combis");
+		    console.log("No more sets");
 	    }
     };
     transaction.oncomplete=function() {setLayerVisibility()};
@@ -3815,7 +3634,7 @@ function makeElement(g) {
     console.log('make '+g.type+' element '+g.id);
     var ns=id('svg').namespaceURI;
     switch(g.type) {
-    	case 'sketch':
+    	case 'curve':
             var el=document.createElementNS(ns,'path');
             el.setAttribute('id',g.id);
             el.setAttribute('stroke',g.stroke);
@@ -3827,7 +3646,7 @@ function makeElement(g) {
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             console.log('points: '+g.points);
             // el.setAttribute('points',g.points);
-            el.setAttribute('d',sketchPath(g.points));
+            el.setAttribute('d',curvePath(g.points));
             el.setAttribute('spin',g.spin);
             if(g.spin!=0) setTransform(el); // apply spin MAY NOT WORK!!!
             nodes.push({'x':g.points[0].x,'y':g.points[0].y,'n':Number(g.id*10+0)});
@@ -4022,7 +3841,7 @@ function makeElement(g) {
             console.log('links added for dimension '+g.id);
             for(var i=0;i<dims.length;i++) console.log('link '+i+': dim:'+dims[i].dim+' nodes: '+dims[i].n1+','+dims[i].n2);
             break;
-        case 'combi':
+        case 'set':
             var el=document.createElementNS(ns,'use');
             el.setAttribute('id',g.id);
             el.setAttribute('href','#'+g.name);
@@ -4054,7 +3873,7 @@ function makeElement(g) {
     }
     if(!g.layer) el.setAttribute('layer',1); // compatible with earlier drawings without layers
     else el.setAttribute('layer',g.layer);
-    if((g.type!='text')&&(g.type!='combi')&&(g.type!='image')) { // set style
+    if((g.type!='text')&&(g.type!='set')&&(g.type!='image')) { // set style
     	console.log('set style - fillType is '+g.fillType+'; fill is '+g.fill);
     	el.setAttribute('stroke',g.stroke);
 		el.setAttribute('stroke-width',g.lineW);
@@ -4084,7 +3903,7 @@ function makeElement(g) {
 }
 function move(el,dx,dy) {
     switch(type(el)) {
-    	case 'sketch':
+    	case 'curve':
             console.log('move all points by '+dx+','+dy);
             var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
 	        var request=graphs.get(Number(el.id));
@@ -4098,7 +3917,7 @@ function move(el,dx,dy) {
 	            request=graphs.put(graph);
 	            request.onsuccess=function(event) {
 			        console.log('graph '+el.id+' updated - starts at '+graph.points[0].x+','+graph.points[0].y);
-			        el.setAttribute('d',sketchPath(graph.points)); // redraw sketch element path
+			        el.setAttribute('d',curvePath(graph.points)); // redraw curve element path
 		        };
 		        request.onerror=function(event) {
 		            console.log("PUT ERROR updating graph "+id);
@@ -4119,7 +3938,7 @@ function move(el,dx,dy) {
             updateGraph(el.id,['points',el.getAttribute('points')]);
             break;
         case 'box':
-        case 'combi':
+        case 'set':
         case 'image':
             var valX=parseInt(el.getAttribute('x'));
             valY=parseInt(el.getAttribute('y'));
@@ -4171,13 +3990,6 @@ function move(el,dx,dy) {
     setTransform(el); // adjust spin to new position
     refreshNodes(el);
 }
-function prompt(text) {
-    console.log('PROMPT '+text);
-    // re('wind'); // WAS id('undoButton').style.display='none';
-    id('prompt').innerHTML=text; //display text for 3 secs
-    id('prompt').style.display='block';
-    setTimeout(function(){id('prompt').style.display='none'},10000);
-}
 function re(op) { // op is 're-member' (memorise and show undo), 're-call' (reinstate and hide undo) or 're-wind' (hide undo)
     console.log('re'+op+'; '+selection.length+' selected items; '+memory.length+' memory items');
     console.log('item 1: '+selection[0]);
@@ -4215,7 +4027,7 @@ function re(op) { // op is 're-member' (memorise and show undo), 're-call' (rein
                 case 'arc':
                     props.d=el.getAttribute('d');
                 case 'text':
-                case 'combi':
+                case 'set':
                     props.x=el.getAttribute('x');
                     props.y=el.getAttribute('y');
                     props.flip=el.getAttribute('flip');
@@ -4263,7 +4075,7 @@ function re(op) { // op is 're-member' (memorise and show undo), 're-call' (rein
                 refreshNodes(el);
                 break;
             case 'text':
-            case 'combi':
+            case 'set':
                 el.setAttribute('x',item.x);
                 el.setAttribute('y',item.y);
                 el.setAttribute('flip',item.flip);
@@ -4477,7 +4289,7 @@ function refreshNodes(el) {
             elNodes[2].y=arc.y2;
             console.log('arc centre node: '+elNodes[0].x+','+elNodes[0].y);
             break;
-        case 'combi':
+        case 'set':
             elNodes[0].x=Number(el.getAttribute('ax'));
             elNodes[0].y=Number(el.getAttribute('ay'));
             break;
@@ -4543,7 +4355,7 @@ function select(el,multiple) {
         id('handles').innerHTML+=html;
     }
     	switch(type(el)) {
-    		case 'sketch':
+    		case 'curve':
 				var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
 				var request=graphs.get(Number(el.id));
 				request.onsuccess=function(event) {
@@ -4566,7 +4378,7 @@ function select(el,multiple) {
 					}
 				}
 				id('guides').style.display='block';
-				prompt('SKETCH');
+				prompt('CURVE');
 				node=0; // default anchor node
 				mode='pointEdit';
 				break;
@@ -4578,7 +4390,7 @@ function select(el,multiple) {
             	var points=el.points;
             	var n=points.length;
             	console.log('bounds: '+w+'x'+h+'mm; '+n+' points');
-            	setSizes('box',el.getAttribute('spin'),w,h); // size of bounding box
+            	setSizes('box',el.getAttribute('spin'),w,h,el.layer); // size of bounding box
             	// draw handles
             	var html="<use id='mover0' href='#mover' x='"+points[0].x+"' y='"+points[0].y+"'/>";
             	id('handles').innerHTML+=html; // circle handle moves whole element
@@ -4588,7 +4400,7 @@ function select(el,multiple) {
             }
             	id('bluePolyline').setAttribute('points',el.getAttribute('points'));
             	id('guides').style.display='block';
-            	showSizes(true,'LINE');
+            	hint('SHAPE');
             	if(mode=='shape') prompt('SHAPE');
             	node=0; // default anchor node
             	mode='pointEdit';
@@ -4611,8 +4423,9 @@ function select(el,multiple) {
             	html+="<use id='sizer3' href='#sizer' x='"+x+"' y='"+(y+h)+"'/>"; // bottom/left
             	html+="<use id='sizer4' href='#sizer' x='"+(x+w)+"' y='"+(y+h)+"'/>"; // bottom/right
             	id('handles').innerHTML+=html;
+            	console.log('spin: '+el.getAttribute('spin')+' layer is '+el.getAttribute('layer'));
             	setSizes('box',el.getAttribute('spin'),w,h);
-            	showSizes(true,(w==h)?'SQUARE':'BOX');
+            	showInfo(true,(w==h)?'SQUARE':'BOX',el.getAttribute('layer'));
             	node=0; // default anchor node
             	mode='edit';
             	break;
@@ -4635,12 +4448,12 @@ function select(el,multiple) {
             	html+="<use id='sizer4' href='#sizer' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/right
             	id('handles').innerHTML+=html;
             	setSizes('box',el.getAttribute('spin'),w,h);
-            	showSizes(true,(w==h)?'CIRCLE':'OVAL');
+            	showInfo(true,(w==h)?'CIRCLE':'OVAL',el.getAttribute('layer'));
             	node=0; // default anchor node
             	mode='edit';
             	break;
         	case 'arc':
-            	var d=el.getAttribute('d');
+            	var d=el.getAttribute('d');r
             	console.log('select arc - d: '+d);
             	getArc(d); // derive arc geometry from d
             	// draw handles
@@ -4662,7 +4475,7 @@ function select(el,multiple) {
             	a=Math.round(a);
 	            if(arc.major>0) a=360-a;
     	        setSizes('arc',el.getAttribute('spin'),arc.r,a);
-        	    showSizes(true,'ARC');
+        	    showInfo(true,'ARC',el.layer);
             	mode='edit';
 	            break;
     	    case 'text':
@@ -4711,7 +4524,7 @@ function select(el,multiple) {
 	            prompt('DIMENSION');
     	        mode='edit';
         	    break;
-	        case 'combi':
+	        case 'set':
     	        var bounds=getBounds(el);
         	    x=Number(el.getAttribute('x'));
             	y=Number(el.getAttribute('y'));
@@ -4723,7 +4536,7 @@ function select(el,multiple) {
 	            // var html="<circle id='handle' cx='"+x+"' cy='"+y+"' r='"+handleR+"' stroke='none' fill='#0000FF88'/>";
     	        id('handles').innerHTML=html;
         	    setSizes('box',el.getAttribute('spin'),w,h);
-            	showSizes(true,'COMBI');
+            	showInfo(true,'SET',el.layer);
 	            mode='edit';
     	        break;
     	    case 'image':
@@ -4744,7 +4557,7 @@ function select(el,multiple) {
             	html+="<use id='sizer1' href='#sizer' x='"+(x+w)+"' y='"+(y+h)+"'/>"; // sizer - bottom/right
             	id('handles').innerHTML+=html;
             	setSizes('image',el.getAttribute('spin'),w,h);
-            	showSizes(true,'IMAGE');
+            	showInfo(true,'IMAGE',el.layer);
             	node=0; // default anchor node
             	mode='edit';
     	    	break;
@@ -4755,21 +4568,21 @@ function setButtons() {
     var n=selection.length;
     console.log('set buttons for '+n+' selected elements');
     var active=[3,9,21]; // active buttons - remove, move and repeat always active
-    // childNodes of editTools are... 0:add 1:remove 2:forward 3:back 4:move 5:spin 6:flip 7:align 8:copy 9:double 10:repeat 11:fillet 12: anchor 13:combine
+    // childNodes of editTools are... 0:add 1:remove 2:forward 3:back 4:move 5:spin 6:flip 7:align 8:copy 9:double 10:repeat 11:fillet 12: anchor 13:join
     if(n>1) { // multiple selection
-        if(anchor) { // spin and flip and combine active if anchor available for multiple selection
+        if(anchor) { // spin and flip and join active if anchor available for multiple selection
             active.push(11);
             active.push(13);
-            active.push(25);
+            active.push(27);
         }
         active.push(15); // align and anchor active for multiple selection
-        active.push(23);
+        active.push(25);
     }
     else { // single element selected
         var t=type(id(selection[0]));
         // console.log('selected element is '+t);
         if((t=='line')||(t=='shape')) active.push(1); // can add points to selected line/shape
-        else if(t=='box') active.push(21); // fillet tool active for a selected box
+        else if(t=='box') active.push(23); // fillet tool active for a selected box
         if(selectedPoints.length<1) { // unless editing line/shape active tools include...
             active.push(5); // push/pull back/forwards
             active.push(7);
@@ -4779,7 +4592,7 @@ function setButtons() {
             active.push(25);
         } 
     }
-    if(n>1) id('sizes').style.display='none';
+    if(n>1) id('info').style.height=0;
     var set='';
     for(i=0;i<active.length;i++) set+=active[i]+' ';
     // console.log(active.length+' edit tools active: '+set);
@@ -4789,6 +4602,17 @@ function setButtons() {
         // console.log(i+' '+btn.id+': '+(active.indexOf(i)>=0));
         id('editTools').childNodes[i].disabled=(active.indexOf(i)<0);
     }
+}
+function setLayer() {
+	console.log('SET CURRENT ELEMENT LAYER');
+	var elementLayer=null;
+	for(var i=0;i<10;i++) {
+		if(i>0) {
+			if(id('choice'+i).checked) elementLayer=i;
+			if(i>0) id('choice'+i).innerText=i+' '+layers[i].name;
+		}
+		id('elementLayer').innerText=elementLayer;
+	}
 }
 function setLayers() {
 	console.log('set layers');
@@ -4834,7 +4658,7 @@ function setLineStyle(g) {
     // else return null;
 }
 function setSizes(mode,spin,p1,p2,p3,p4) {
-    // console.log('setSizes - '+mode+','+p1+','+p2+','+p3+','+p4);
+    console.log('setSizes - '+mode+','+p1+','+p2+','+p3+','+p4+' spin '+spin);
     if(mode=='box') {
         id('first').value=Math.round(p1);
         id('between').innerHTML='x';
@@ -4865,7 +4689,7 @@ function setSizes(mode,spin,p1,p2,p3,p4) {
 function setStyle() {
 	console.log('setStyle: '+selection.length+' items selected');
 	var el=(selection.length>0)?id(selection[0]):null;
-    if(!el ||(type(el)=='combi')||(type(el)=='dim')||(type(el)=='image')) { // no element/combi/dimension - show default styles
+    if(!el ||(type(el)=='set')||(type(el)=='dim')||(type(el)=='image')) { // no element/set/dimension - show default styles
         id('lineType').value=lineType;
         id('line').style.borderBottomStyle=lineType;
         id('line').style.borderWidth=pen+'mm';
@@ -4938,7 +4762,6 @@ function setTransform(el) {
     console.log('set transform for element '+el.id);
     var spin=parseInt(el.getAttribute('spin'));
     var flip=el.getAttribute('flip');
-    // var s=1; // scale factor (only affects NTS combis)
     console.log('set spin to '+spin+' degrees and flip to '+flip+' for '+type(el));
     switch(type(el)) {
         case 'line':
@@ -4951,7 +4774,7 @@ function setTransform(el) {
             y=parseInt(el.getAttribute('y'))+parseInt(el.getAttribute('height'))/2;
             break;
         case 'text':
-        case 'combi':
+        case 'set':
             x=parseInt(el.getAttribute('x'));
             y=parseInt(el.getAttribute('y'));
             break;
@@ -4999,43 +4822,23 @@ function showEditTools(visible) {
         id('tools').style.display='block';
     }
 }
-function showSizes(visible,promptText) {
-	console.log((visible)?'show sizes':'hide sizes');
-    if(visible) id('sizes').style.display='block';
-    else id('sizes').style.display='none';
-    if(promptText) prompt(promptText);
-}
-function sketchPath(pts) {
-	console.log('get path for points: '+pts);
-	var d='M'+pts[0].x+','+pts[0].y; // move to point 0
-	if(pts.length<3) d+=' L'+pts[1].x+','+pts[1].y; // 2 points - short straight line
-	else {
-	    var n=7; // vary n to adjust smoothness of curve - 7 seems a good compromise
-	    var c1={}; // control points
-	    var c2={};
-	    dx=pts[2].x-pts[0].x; // position control points parallel to chord of flanking points
-	    dy=pts[2].y-pts[0].y; // this is for point 1
-	    c2.x=pts[1].x-dx/n; // first control point
-	    c2.y=pts[1].y-dy/n;
-	    d+=' Q'+c2.x+','+c2.y+' '+pts[1].x+','+pts[1].y; // first segment - quadratic curve
-	    // console.log('point 1 path: '+d);
-	    var i=2;
-	    while(i<pts.length-1) { // intermediate segments
-	        c1.x=pts[i-1].x+dx/n; // reflect previous control point
-	        c1.y=pts[i-1].y+dy/n;
-	        dx=pts[i+1].x-pts[i-1].x;
-	        dy=pts[i+1].y-pts[i-1].y;
-	        c2.x=pts[i].x-dx/n; // next control point
-	        c2.y=pts[i].y-dy/n;
-	        d+=' C'+c1.x+','+c1.y+' '+c2.x+','+c2.y+' '+pts[i].x+','+pts[i].y; // cubic curves
-	        // console.log('point '+i+': '+d);
-	        i++
-	    }
-	    c1.x=pts[i-1].x+dx/n;
-	    c1.y=pts[i-1].y+dy/n;
-	    d+=' S'+c1.x+','+c1.y+' '+pts[i].x+','+pts[i].y; // final segment - smooth cubic curve
+function showInfo(visible,type,layer,hint) {
+	console.log((visible)?'show info':'hide info');
+	if(!visible) {
+		id('info').style.height=0;
+		return;
 	}
-	return d;
+	console.log(type+'; '+layer+'; '+hint);
+	id('type').innerText=type;
+	id('elementLayer').innerText=' layer '+layer;
+	if(hint) {
+		id('info').style.height='50px';
+		id('hint').innerText=hint;
+	}
+	else {
+		id('info').style.height='36px';
+		id('hint').innerText='';
+	}
 }
 function snapCheck() {
     var near=nodes.filter(function(node) {
@@ -5144,7 +4947,7 @@ function textFormat(text,across) {
 }
 function type(el) {
 	if(el instanceof(SVGPathElement)) {
-		return 'sketch';
+		return 'curve';
 	}
     else if(el instanceof SVGPolylineElement) {
         return 'line';
@@ -5168,13 +4971,13 @@ function type(el) {
         return 'dim';
     }
     else if(el instanceof SVGSVGElement) {
-        return 'combi';
+        return 'set';
     }
     else if(el instanceof SVGCircleElement) {
         return 'anchor';
     }
     else if(el instanceof SVGUseElement) {
-        return 'combi';
+        return 'set';
     }
     else if(el instanceof SVGImageElement) {return 'image';}
 }
@@ -5216,8 +5019,8 @@ request.onupgradeneeded=function(event) {
     if (!db.objectStoreNames.contains('graphs')) {
         var graphs=db.createObjectStore('graphs',{keyPath:'id',autoIncrement:true});
     }
-    if (!db.objectStoreNames.contains('combis')) {
-        var combis=db.createObjectStore("combis",{keyPath:'name'});
+    if (!db.objectStoreNames.contains('sets')) {
+        var sets=db.createObjectStore("sets",{keyPath:'name'});
     }
 };
 request.onerror=function(event) {
