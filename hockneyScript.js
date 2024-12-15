@@ -1,5 +1,6 @@
 // GLOBAL VARIABLES
 var dbVersion=3;
+var name=null;
 var size=0; // drawing size default to A4
 var aspect='landscape'; // default orientation
 var scale=1; // default scale is 1:1
@@ -37,6 +38,7 @@ var nodes=[]; // array of nodes each with x,y coordinates and element ID
 var dims=[]; // array of links between elements and dimensions
 var layers=[]; // array of layer objects
 var layer=1;
+var stackLayers=false;
 var element=null; // current element
 var elID=null; // id of current element
 var memory=[]; // holds element states to allow undo
@@ -78,13 +80,23 @@ scale=window.localStorage.getItem('scale');
 gridSize=window.localStorage.getItem('gridSize');
 gridSnap=window.localStorage.getItem('gridSnap');
 layerData=window.localStorage.getItem('layers');
+stackLayers=window.localStorage.getItem('stackLayers');
 if(name===null) name='unnamed';
 if(size===null) size=0;
 if(scale===null) scale=1;
 if(!gridSize) gridSize=300;
 if(!gridSnap) gridSnap=0;
-console.log('grid checked: '+id('gridSnap').checked);
+console.log('grid checked: '+getElement('gridSnap').checked);
 console.log('name: '+name+'; aspect: '+aspect+'; scale: '+scale+'; grid: '+gridSize+' '+gridSnap);
+/* TEST DOWNLOAD
+var loader=new FileReader();
+loader.addEventListener('load',function(evt){
+	var data=evt.target.result;
+	var json=JSON.parse(data);
+	console.log('data: '+json);
+});
+loader.readAsText('https://elvinibbotson.github.io/Hockney/test.json');
+*/
 if(!layerData) { // initialise layers first time
 	layers=[];
 	for(var i=0;i<10;i++) {
@@ -96,7 +108,7 @@ if(!layerData) { // initialise layers first time
 	layer=1;
 	layers[0].name='background';
 	for(var i=1;i<10;i++) {
-		id('layerName'+i).value=layers[i].name;
+		getElement('layerName'+i).value=layers[i].name;
 	}
 }
 else { // use saved layers
@@ -105,64 +117,66 @@ else { // use saved layers
 }
 for(var i=0;i<10;i++) { // set layers dialog
 	if(i>0) {
-		id('layer'+i).checked=layers[i].checked;
+		getElement('layer'+i).checked=layers[i].checked;
 		if(layers[i].checked) layer=i;
-		id('layerName'+i).value=layers[i].name;
-		if(!layers[i].name) id('layerName'+i).value='';
+		getElement('layerName'+i).value=layers[i].name;
+		if(!layers[i].name) getElement('layerName'+i).value='';
 	}
-	id('layerVisible'+i).checked=layers[i].visible;
-	id('layer').innerText=layer;
+	getElement('layerVisible'+i).checked=layers[i].visible;
+	getElement('layer').innerText=layer;
 }
+if(!stackLayers) stackLayers=false;
+getElement('stacked').checked=stackLayers;
 if(!aspect) {
     aspect=(scr.w>scr.h)?'landscape':'portrait';
-    id('drawingAspect').innerText=aspect;
+    getElement('drawingAspect').innerText=aspect;
     showDialog('newDrawingDialog',true);
 }
 else initialise();
-// setTimeout(function(){id('prompt').style.display='none'},5000);
 // disable annoying pop-up menu
 document.addEventListener('contextmenu',event=>event.preventDefault());
 // TOOLS
-id('layersButton').addEventListener('click',function() {
+getElement('layersButton').addEventListener('click',function() {
 	console.log('LAYERS');
 	showDialog('layerDialog',true);
 });
 for(var i=0;i<10;i++) {
-	id('layer'+i).addEventListener('click',setLayers);
-	if(i>0) {id('layerName'+i).addEventListener('change',setLayers);}
-	id('layerVisible'+i).addEventListener('click',setLayerVisibility);
+	getElement('layer'+i).addEventListener('change',setLayers);
+	if(i>0) {getElement('layerName'+i).addEventListener('change',setLayers);}
+	getElement('layerVisible'+i).addEventListener('click',setLayerVisibility);
 }
-id('docButton').addEventListener('click',function() {
-	id('drawingName').innerHTML=name;
-    id('drawingSize').innerHTML=sizes[size];
-    id('drawingScale').innerHTML=scale;
-    id('drawingAspect').innerHTML=aspect;
-    id('gridSnap').checked=(gridSnap>0)?true:false;
+getElement('stacked').addEventListener('click',function(){
+	stackLayers=getElement('stacked').checked;
+	window.localStorage.setItem('stackLayers',stackLayers);
+	load();
+})
+getElement('docButton').addEventListener('click',function() {
+	getElement('drawingName').innerHTML=name;
+    getElement('drawingSize').innerHTML=sizes[size];
+    getElement('drawingScale').innerHTML=scale;
+    getElement('drawingAspect').innerHTML=aspect;
+    getElement('gridSnap').checked=(gridSnap>0)?true:false;
     console.log('grid is '+gridSnap);
     showDialog('docDialog',true);
 });
-id('gridSnap').addEventListener('change',function() {
-   gridSnap=(id('gridSnap').checked)?1:0;
+getElement('gridSnap').addEventListener('change',function() {
+   gridSnap=(getElement('gridSnap').checked)?1:0;
    window.localStorage.setItem('gridSnap',gridSnap);
    console.log('grid is '+gridSnap);
 });
-id('gridSize').addEventListener('change',function() {
-    gridSize=parseInt(id('gridSize').value);
+getElement('gridSize').addEventListener('change',function() {
+    gridSize=parseInt(getElement('gridSize').value);
     window.localStorage.setItem('gridSize',gridSize);
     console.log('grid is '+gridSize);
 });
-id('new').addEventListener('click',function() {
-    // alert('You may want to save your work before starting a new drawing');
+getElement('new').addEventListener('click',function() {
     console.log("show newDrawingDialog - screen size: "+scr.w+'x'+scr.h);
-    // showDialog('fileMenu',false);
-    // aspect=(scr.w>scr.h)?'landscape':'portrait';
-    // id('aspect').innerHTML=aspect;
     showDialog('newDrawingDialog',true);
 });
-id('createNewDrawing').addEventListener('click',function() {
-	size=id('sizeSelect').value;
-	aspect=id('aspectSelect').value;
-    scale=id('scaleSelect').value;
+getElement('createNewDrawing').addEventListener('click',function() {
+	size=getElement('sizeSelect').value;
+	aspect=getElement('aspectSelect').value;
+    scale=getElement('scaleSelect').value;
     console.log('create new drawing - size:'+size+'('+sizes[size]+') aspect:'+aspect+' scale:'+scale);
     var index=parseInt(size);
     if(aspect=='portrait') index+=7;
@@ -176,11 +190,11 @@ id('createNewDrawing').addEventListener('click',function() {
     window.localStorage.setItem('name',name);
     elID=0;
     // CLEAR DRAWING IN HTML & DATABASE
-    id('dwg').innerHTML=''; // clear drawing
+    getElement('dwg').innerHTML=''; // clear drawing
     /*
-    id('ref').innerHTML="<rect id='background' x='0' y='0' width='"+dwg.w+"' height='"+dwg.h+"' stroke='none' fill='white'/>"; // clear background layer
+    getElement('ref').innerHTML="<rect id='background' x='0' y='0' width='"+dwg.w+"' height='"+dwg.h+"' stroke='none' fill='white'/>"; // clear background layer
     */
-    id('handles').innerHTML=''; // clear any edit handles
+    getElement('handles').innerHTML=''; // clear any edit handles
     var request=db.transaction('graphs','readwrite').objectStore('graphs').clear(); // clear graphs database
 	request.onsuccess=function(event) {
 		console.log("database cleared");
@@ -192,105 +206,99 @@ id('createNewDrawing').addEventListener('click',function() {
     window.localStorage.setItem('name',name);
     initialise();
 });
-id('load').addEventListener('click',function() {
-    id('replace').checked=true;
+getElement('load').addEventListener('click',function() {
+    getElement('drawing').checked=true;
     showDialog('loadDialog',true); 
 });
-id('fileChooser').addEventListener('change',function() {
-    // CLEAR graphs AND sets OBJECT STORES BEFORE LOADING NEW DRAWING DATA
-    var method='replace';
-    if(id('merge').checked) method='merge';
-    else if(id('set').checked) method='set';
+getElement('confirmLoad').addEventListener('click',async function(){
+	var method='drawing';
+    if(getElement('set').checked) method='set';
+    else if(getElement('image').checked) method='image';
     console.log('load method: '+method);
-    var file=id('fileChooser').files[0];
-    console.log('load file '+file+' name: '+file.name);
-    var loader=new FileReader();
-    loader.addEventListener('load',function(evt) {
-        var data=evt.target.result;
-		var json=JSON.parse(data);
-		console.log("json: "+json);
-		var transaction=db.transaction(['graphs','sets'],'readwrite');
-		var graphStore=transaction.objectStore('graphs');
-		var setStore=transaction.objectStore('sets');
-		if(method=='replace') {
-		    name=file.name;
-		   	var n=name.indexOf('.json');
-		   	name=name.substr(0,n);
-		   	window.localStorage.setItem('name',name);
-		   	id('dwg').innerHTML=''; // clear drawing
-           	id('handles').innerHTML=''; // clear any edit handles
-	    	graphStore.clear();
-		    setStore.clear();
-		   	nodes=[];
-		   	dims=[];
-		   	size=json.size;
-		   	window.localStorage.setItem('size',size);
-	    	aspect=json.aspect;
-	    	window.localStorage.setItem('aspect',aspect);
-		    scale=json.scale;
-		   	window.localStorage.setItem('scale',scale);
-		   	console.log('load drawing - aspect:'+aspect+' scale:'+scale);
-		   	initialise();
-		   	for(var i=0;i<json.graphs.length;i++) {
-	        	console.log('add graph '+json.graphs[i].type);
-	        	var request=graphStore.add(json.graphs[i]);
-	        }
-		    for(i=0;i<json.sets.length;i++) {
+    console.log('show file chooser');
+	var [handle]=await window.showOpenFilePicker();
+	console.log('file handle: '+handle);
+	var file=await handle.getFile();
+	if(method=='image') addImage(file);
+	else {
+		console.log('load file '+file+' name: '+file.name+' type '+file.type+' '+file.size+' bytes');
+    	var loader=new FileReader();
+    	loader.addEventListener('load',function(evt) {
+        	var data=evt.target.result;
+        	console.log('data: '+data.length+' bytes');
+      		var json=JSON.parse(data);
+			var transaction=db.transaction(['graphs','sets'],'readwrite');
+			var graphStore=transaction.objectStore('graphs');
+			var setStore=transaction.objectStore('sets');
+			if(method=='set') { // load selected set(s)
+				var sets=json.sets;
+				for(var i=0;i<sets.length;i++) {
+					var name=sets[i].name;
+		    		console.log("add set "+name);
+					var request=setStore.add(sets[i]);
+					request.onsuccess=function(e) {
+						console.log("set added");
+					};
+					request.onerror=function(e) {console.log("error adding sets");};
+				}
+			}
+			else { // load drawing
+				if(method=='drawing') {
+		    	name=file.name;
+		   		var n=name.indexOf('.json');
+		   		name=name.substr(0,n);
+		   		window.localStorage.setItem('name',name);
+		   		getElement('dwg').innerHTML=''; // clear drawing
+           		getElement('handles').innerHTML=''; // clear any edit handles
+	    		graphStore.clear();
+		    	setStore.clear();
+		   		nodes=[];
+		   		dims=[];
+		   		size=json.size;
+				window.localStorage.setItem('size',size);
+	    		aspect=json.aspect;
+	    		window.localStorage.setItem('aspect',aspect);
+		    	scale=json.scale;
+		   		window.localStorage.setItem('scale',scale);
+		   		console.log('load drawing - aspect:'+aspect+' scale:'+scale);
+		   		initialise();
+			}
+				reset();
+	  			for(var i=0;i<json.graphs.length;i++) {
+		    		console.log('add graph '+json.graphs[i].type);
+	        		var request=graphStore.add(json.graphs[i]);
+	        		request.onsuccess=function(e){
+	        		console.log('saved graph');
+	        	}
+	  			}
+	        	for(i=0;i<json.sets.length;i++) {
 		       	console.log('add set '+json.sets[i].name);
 		       	request=setStore.add(json.sets[i]);
 		   	}
-		}
-		else if(method=='merge') {
-		    name='';
-		    window.localStorage.setItem('name','');
-		    for(var i=0;i<json.graphs.length;i++) {
-		        console.log('add graph '+json.graphs[i].type);
-		        if(layer==0) { // merging to layer 0 adds to background layer
-		            if(json.graphs[i].type=='dim') continue; // skip dimensions
-		            json.graphs[i].stroke='blue'; // reference layer in blue...
-		            json.graphs[i].fill='none'; // ...with no fill
-		            console.log('graph '+i+' set as blue outline'); 
-		        }
-		        json.graphs[i].layer=layer; // import drawing to current layer
-		        var request=graphStore.add(json.graphs[i]);
-		    }
-		    for(i=0;i<json.sets.length;i++) {
-		        console.log('add set '+json.sets[i].name);
-		        request=setStore.add(json.sets[i]);
-		    }
-		}
-		if(method=='set') { // load selected set
-		    var name=json.name; // one set per file
-		    console.log("add "+name);
-			var request=setStore.add(json);
-			request.onsuccess=function(e) {
-			    var n=request.result;
-				console.log("set added to database: "+n);
-			};
-			request.onerror=function(e) {console.log("error adding sets");};
-		}
-		transaction.oncomplete=function() {
-		    console.log('drawing imported - load & draw');
-            if(method!='set') load();
-		}
-    });
-    loader.addEventListener('error',function(event) {
-        console.log('load failed - '+event);
-    });
-   	loader.readAsText(file);
+			}
+			transaction.oncomplete=function() {
+            	if(method=='drawing') load();
+            	else if(method=='set') listSets();
+            	else listImages();
+			}
+        });
+		loader.addEventListener('error',function(event) {
+        	console.log('load failed - '+event);
+    	});
+    	loader.readAsText(file);
+    }
     showDialog('loadDialog',false);
-})
-id('save').addEventListener('click',function() {
-    name=window.localStorage.getItem('name');
-    if(name) id('saveName').value=name;
+});
+getElement('save').addEventListener('click',function() {
+    // name=window.localStorage.getItem('name');
+    // if(name) getElement('saveName').value=name;
     showDialog('saveDialog',true);
 });
-id('confirmSave').addEventListener('click',function() {
-    name=id('saveName').value;
-    if(id('data').checked) {
-    	console.log('save data to file: '+name+'.json');
-    	fileName=name+".json";
-    	window.localStorage.setItem('name',name);
+getElement('confirmSave').addEventListener('click',async function() {
+    if(getElement('data').checked) {
+    	console.log('save data to json file');
+    // fileName=name+".json";
+    // window.localStorage.setItem('name',name);
     	var data={};
     	data.size=size;
     	data.aspect=aspect;
@@ -300,136 +308,135 @@ id('confirmSave').addEventListener('click',function() {
     	var transaction=db.transaction(['graphs','sets']);
     	var request=transaction.objectStore('graphs').openCursor();
     	request.onsuccess=function(event) {
-        	var cursor=event.target.result;
+    		var cursor=event.target.result;
         	if(cursor) {
-            // console.log('graph: '+cursor.value.id);
-            // var index=order.indexOf(Number(cursor.value.id)); // save graphs in drawing order
-            // console.log('index: '+index);
-            delete cursor.value.id;
-            data.graphs.push(cursor.value);
-            // data.graphs[index]=cursor.value;
-            cursor.continue();
-        }
+            	delete cursor.value.id;
+            	data.graphs.push(cursor.value);
+            	// data.graphs[index]=cursor.value;
+            	cursor.continue();
+        	}
         	else {
-            console.log('save '+data.graphs.length+' graphs');
-            request=transaction.objectStore('sets').openCursor();
-            request.onsuccess=function(event) {
-                cursor=event.target.result;
-                if(cursor) {  // SAVE WITHOUT id's ????
-                    console.log('set: '+cursor.value.name);
-                    delete cursor.value.id; // SHOULDN'T NEED THIS
-                    data.sets.push(cursor.value);
-                    cursor.continue();
-                }
-                else {
-                    console.log('save '+data.sets.length+' sets');
-                }
-            }
-        }
+            	console.log('save '+data.graphs.length+' graphs');
+        		request=transaction.objectStore('sets').openCursor();
+        		request.onsuccess=function(event) {
+                	cursor=event.target.result;
+                	if(cursor) {  // SAVE WITHOUT id's ????
+                    	console.log('set: '+cursor.value.name);
+                    	delete cursor.value.id; // SHOULDN'T NEED THIS
+                    	data.sets.push(cursor.value);
+                    	cursor.continue();
+                	}
+                	else {
+                    	console.log('save '+data.sets.length+' sets');
+                	}
+            	}
+        	}
     	}
     	transaction.oncomplete=function() {
-        	console.log('ready to save drawing data to file');
-        	var json=JSON.stringify(data);
-        	download(json,fileName,'text/plain');
+    		console.log('ready to save drawing data to file');
+    		var json=JSON.stringify(data);
+    		save(name,json,'json');
+    		// cancel();
+        	// download(json,fileName,'text/plain');
     	}
     }
-    else if(id('print').checked) {
+    else if(getElement('print').checked) {
     	console.log('save drawing as SVG');
-    	fileName+='.svg';
-    	id('datumSet').style.display='none';
+    	// fileName+='.svg';
+    	getElement('datumSet').style.display='none';
     	var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+dwg.w+'mm" height="'+dwg.h+'mm" viewBox="0 0 '+dwg.w+' '+dwg.h+'">';
-    	svg+=id('dwg').innerHTML+'</svg>';
+    	svg+=getElement('dwg').innerHTML+'</svg>';
     	console.log('SVG: '+svg);
-    	download(svg,fileName,'data:image/svg+xml');
-		id('datumSet').style.display='block';
+    	save(name,svg,'svg');
+		getElement('datumSet').style.display='block';
     }
-    else if(id('image').checked) {
-    	method='image';
-    	fileName=name+'.png';
-    	var canvas=id('canvas');
-    	var img=document.createElement('img'); // new Image();
-    	document.body.appendChild(img);
-    	var svg=id('svg').cloneNode(true); // copy svg and set to full scale
-    	svg.setAttribute('viewBox',view.x+' '+view.y+' '+scr.w*f+' '+scr.h*f);
-    	var xml=(new XMLSerializer).serializeToString(svg);
-    	img.onload=function() {
-    		w=img.clientWidth;
-    		h=img.clientHeight;
-    		console.log('svg image size: '+w+'x'+h+'; zoom: '+zoom+'; viewbox: '+view.box);
-			ctx.drawImage(img,0,0,w,h);
-			var png_img=canvas.toDataURL("image/png");
-			var a=document.createElement('a');
-	   		a.download=fileName;
-    		a.href=canvas.toDataURL('image/png');
-    		document.body.appendChild(a);
-			a.click();
-   			document.body.removeChild(img);
-   			hint('file '+fileName+" saved to downloads folder");
+    else { // save set(s)
+    	var selectedSets=[];
+    	var request=db.transaction('sets','readonly').objectStore('sets').openCursor();
+    	request.onsuccess=function(event) {
+    		var cursor=event.target.result;
+        	if(cursor) {
+				var setName=cursor.value.name;
+				if(getElement('$'+setName).checked) selectedSets.push({name:setName, svg:cursor.value.svg});
+            	cursor.continue();
+        	}
+        	else {
+            	console.log('all sets checked '+selectedSets.length+' selected');
+            	var json='{"sets":[';
+            	for(var i=0;i<selectedSets.length;i++) {
+            		json+='{"name":"'+selectedSets[i].name+'","svg":"'+selectedSets[i].svg+'"}';
+            		if(i<selectedSets.length-1) json+=','; // separate sets
+            	};
+            	json+=']}';
+            	console.log('save sets JSON: '+json);
+            	save('',json,'json');
+        	}
     	}
-    	img.src='data:image/svg+xml,'+encodeURIComponent(xml);
+		request.onerror=function(e) {console.log('failed to check setst');}
+		
     }
     showDialog('saveDialog',false);
 });
-id('zoomInButton').addEventListener('click',function() {
+getElement('zoomInButton').addEventListener('click',function() {
     zoom*=2;
     console.log('zoom in to '+zoom);
     w=Math.round(dwg.w*scale/zoom);
     h=Math.round(dwg.h*scale/zoom);
     console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
-    id('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
-    id('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
+    getElement('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
+    getElement('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     snapD/=2; // avoid making snap too easy
     handleR/=2; // avoid oversizing edit handles
-    // id('zoom').innerHTML=zoom;
+    // getElement('zoom').innerHTML=zoom;
 });
-id('zoomOutButton').addEventListener('click',function() {
+getElement('zoomOutButton').addEventListener('click',function() {
     if(zoom<zoomLimit) return;
     zoom/=2;
     console.log('zoom out to '+zoom);
     w=Math.round(dwg.w*scale/zoom);
     h=Math.round(dwg.h*scale/zoom);
     console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
-    id('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
-    id('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
+    getElement('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
+    getElement('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     snapD*=2;
     handleR*=2;
-    // id('zoom').innerHTML=zoom;
+    // getElement('zoom').innerHTML=zoom;
 });
-id('extentsButton').addEventListener('click',function() {
+getElement('extentsButton').addEventListener('click',function() {
     reset();
 });
-id('panButton').addEventListener('click',function() {
+getElement('panButton').addEventListener('click',function() {
     mode='pan';
 });
 console.log('zoom; '+zoom+' w: '+w+' h: '+h);
 // DRAWING TOOLS
-id('curveButton').addEventListener('click',function() {
+getElement('curveButton').addEventListener('click',function() {
     mode='curve';
     hint('CURVE: drag from start',3);
 });
-id('lineButton').addEventListener('click',function() {
+getElement('lineButton').addEventListener('click',function() {
     mode='line';
-    showInfo(true,'LINE','drag from start');
+    showInfo(true,'LINE',layer,'drag from start');
 });
-id('boxButton').addEventListener('click',function() {
+getElement('boxButton').addEventListener('click',function() {
     mode='box';
     rad=0;
     showInfo(true,'BOX',layer,'drag from corner');
 });
-id('ovalButton').addEventListener('click',function() { // OVAL/CIRCLE
+getElement('ovalButton').addEventListener('click',function() { // OVAL/CIRCLE
     mode='oval';
-    showInfo(true,'OVAL','drag to size');
+    showInfo(true,'OVAL',layer,'drag to size');
 })
-id('arcButton').addEventListener('click', function() {
+getElement('arcButton').addEventListener('click', function() {
    mode='arc';
-   showInfo(true,'ARC','drag from start');
+   showInfo(true,'ARC',layer,'drag from start');
 });
-id('textButton').addEventListener('click',function() {
+getElement('textButton').addEventListener('click',function() {
     mode='text';
     hint('TEXT: tap at start');
 });
-id('textOKbutton').addEventListener('click',function() {
-	var text=id('text').value;
+getElement('textOKbutton').addEventListener('click',function() {
+	var text=getElement('text').value;
 	console.log('text: '+text);
 	if(element) { // change selected text
         element.innerHTML=text;
@@ -454,36 +461,80 @@ id('textOKbutton').addEventListener('click',function() {
     }
     cancel();
 })
-id('dimButton').addEventListener('click',function() {
+getElement('dimButton').addEventListener('click',function() {
    mode='dimStart';
    hint('DIMENSION: tap start node');
 });
-id('confirmDim').addEventListener('click',function() {
+getElement('confirmDim').addEventListener('click',function() {
     dim.dir=document.querySelector('input[name="dimDir"]:checked').value;
     console.log(dim.dir+' selected');
     showDialog('dimDialog',false);
-    id('blueDim').setAttribute('x1',dim.x1);
-    id('blueDim').setAttribute('y1',dim.y1);
-    id('blueDim').setAttribute('x2',(dim.dir=='v')? dim.x1:dim.x2);
-    id('blueDim').setAttribute('y2',(dim.dir=='h')? dim.y1:dim.y2);
-    id('guides').style.display='block';
+    getElement('blueDim').setAttribute('x1',dim.x1);
+    getElement('blueDim').setAttribute('y1',dim.y1);
+    getElement('blueDim').setAttribute('x2',(dim.dir=='v')? dim.x1:dim.x2);
+    getElement('blueDim').setAttribute('y2',(dim.dir=='h')? dim.y1:dim.y2);
+    getElement('guides').style.display='block';
     hint('DIMENSION: drag to position');
     mode='dimPlace';
 });
-id('setButton').addEventListener('click',function() {
+getElement('setButton').addEventListener('click',function() {
     showDialog('setDialog',true);
 });
-id('imageButton').addEventListener('click',function() {
+getElement('imageButton').addEventListener('click',async function() {
+	//CHOOSE IMAGE FROM LIST OF IMAGES IN DATABASE
+	showDialog('imageDialog',true);
+	/* TRY THIS...
+	console.log('show file chooser');
+	var [handle]=await window.showOpenFilePicker();
+	console.log('file handle: '+handle);
+	var file=await handle.getFile();
+	var url=URL.createObjectURL(file);
+	var image=getElement('preview');
+    image.src=url
+    image.onload=function() {
+    	var w=image.width;
+    	var h=image.height;
+    	console.log('image size: '+w+'x'+h+'px');
+    	h/=w;
+    	w=50;
+    	h*=50;
+    	console.log('resize to: '+w+'x'+h+'mm');
+    	var loader=new FileReader();
+    	loader.addEventListener('load',function(e) {
+        	var graph={}
+	    	graph.type='image';
+	    	graph.href=url;
+	    	graph.x=30*scale;
+        	graph.y=30*scale;
+        	graph.width=w;
+        	graph.height=h;
+        	graph.spin=0;
+        	graph.flip=0;
+	    	graph.opacity=opacity;
+	    	graph.layer=layer;
+	    	var el=addGraph(graph);
+	    	// URL.revokeObjectURL(img.src)
+    	});
+    	// console.log('add image at '+x0+','+y0);
+    	loader.addEventListener('error',function(event) {
+        	console.log('image load failed - '+event);
+    	});
+    	loader.readAsDataURL(file);
+    }
+    */
+	/* OLD METHOD...
 	console.log('IMAGE');
 	hint('IMAGE: tap at location');
 	mode='image';
+	*/
 });
-id('imageChooser').addEventListener('change',function(e) {
+/*
+getElement('imageChooser').addEventListener('change',function(e) {
 	mode='select';
-	var file=id('imageChooser').files[0];
+	var file=getElement('imageChooser').files[0];
     console.log('load image '+file.name);
     var url=URL.createObjectURL(file);
-    var image=id('preview');
+    var image=getElement('preview');
     image.src=url
     image.onload=function() {
     	var w=image.width;
@@ -516,17 +567,50 @@ id('imageChooser').addEventListener('change',function(e) {
     }
     showDialog('imageDialog',false);
 });
-id('setList').addEventListener('change',function() {
+*/
+getElement('setList').addEventListener('change',function() {
     console.log('choose '+event.target.value);
     setID=event.target.value;
     console.log('set '+setID+' picked');
-    mode='set';
-    hint('SET: tap to place');
-    id('setList').value=null; // clear selection for next time
+	console.log('place set '+setID);
+    var graph={};
+	graph.type='set';
+	graph.name=setID;
+	graph.x=30*scale;
+	graph.y=30*scale;
+	graph.spin=0;
+	graph.flip=0;
+	graph.layer=layer;
+	addGraph(graph);
+	// cancel();
+    getElement('setList').value=null; // clear selection for next time
     showDialog('setDialog',false);
 });
+getElement('imageList').addEventListener('change',function() {
+    console.log('choose '+event.target.value);
+    var imageName=event.target.value;
+    console.log('image '+imageName+' picked');
+	console.log('place image '+imageName);
+    var graph={};
+    var request=db.transaction('images','readonly').objectStore('images').get(imageName);
+	request.onsuccess=function(event) {
+		graph=event.target.result;
+		graph.type='image';
+		// graph.name=imageName;
+		graph.x=30*scale;
+		graph.y=30*scale;
+		graph.width=100*scale;
+		graph.height=100*scale;
+		graph.spin=0;
+		graph.flip=0;
+		graph.layer=layer;
+		addGraph(graph);
+	}
+    getElement('imageList').value=null; // clear selection for next time
+    showDialog('imageDialog',false);
+});
 // EDIT TOOLS
-id('addButton').addEventListener('click',function() { // add point after selected point in line/shape
+getElement('addButton').addEventListener('click',function() { // add point after selected point in line/shape
     var t=type(element);
     if((t!='line')&&(t!='shape')) return; // can only add points to lines/shapes
     console.log('add point');
@@ -534,7 +618,7 @@ id('addButton').addEventListener('click',function() { // add point after selecte
     mode='addPoint';
     // showDialog('pointDialog',false);
 });
-id('deleteButton').addEventListener('click',function() {
+getElement('deleteButton').addEventListener('click',function() {
     var t=type(element);
     if((t=='line')||(t=='shape')) {
         var points=element.points;
@@ -562,53 +646,53 @@ id('deleteButton').addEventListener('click',function() {
     console.log('element is '+elID);
     showDialog('removeDialog',true);
 });
-id('confirmRemove').addEventListener('click',function() { // complete deletion
+getElement('confirmRemove').addEventListener('click',function() { // complete deletion
     if(selection.length>0) {
         while(selection.length>0) remove(selection.pop());
     }
     else remove(elID);
     element=elID=null;
-    id('handles').innerHTML=''; // remove edit handles...
-    id('selection').innerHTML=''; // ...selection shading,...
-    id('blueBox').setAttribute('width',0); // ...and text outline...
-    id('blueBox').setAttribute('height',0);
+    getElement('handles').innerHTML=''; // remove edit handles...
+    getElement('selection').innerHTML=''; // ...selection shading,...
+    getElement('blueBox').setAttribute('width',0); // ...and text outline...
+    getElement('blueBox').setAttribute('height',0);
     showDialog('removeDialog',false);
     cancel();
 });
-id('backButton').addEventListener('click',function() {
+getElement('backButton').addEventListener('click',function() {
     var previousElement=element.previousSibling;
     if(previousElement===null) {
         hint('already at back');
         return;
     }
     var previousID=previousElement.getAttribute('id');
-    id('dwg').insertBefore(element,previousElement); // move back in drawing...
+    getElement('dwg').insertBefore(element,previousElement); // move back in drawing...
     swopGraphs(previousID,element.id); // ...and in database
 });
-id('forwardButton').addEventListener('click',function() {
+getElement('forwardButton').addEventListener('click',function() {
     var nextElement=element.nextSibling;
     if(nextElement===null) {
         hint('already at front');
         return;
     }
     var nextID=nextElement.getAttribute('id');
-    id('dwg').insertBefore(nextElement,element); // bring forward in drawing.
+    getElement('dwg').insertBefore(nextElement,element); // bring forward in drawing.
     swopGraphs(element.id,nextID); // ...and in database
     // drawOrder(); // update drawing order
 });
-id('moveButton').addEventListener('click',function() {
+getElement('moveButton').addEventListener('click',function() {
     console.log('move '+type(element));
     if(type(element)=='dim') return; // cannot move dimensions
-    id('moveRight').value=id('moveDown').value=id('moveDist').value=id('moveAngle').value=0;
+    getElement('moveRight').value=getElement('moveDown').value=getElement('moveDist').value=getElement('moveAngle').value=0;
     showDialog('textDialog',false);
     showDialog('moveDialog',true);
 });
-id('confirmMove').addEventListener('click',function() {
+getElement('confirmMove').addEventListener('click',function() {
     // read move parameters and adjust element
-    var moveX=parseInt(id('moveRight').value);
-    var moveY=parseInt(id('moveDown').value);
-    var moveD=parseInt(id('moveDist').value);
-    var moveA=parseInt(id('moveAngle').value);
+    var moveX=parseInt(getElement('moveRight').value);
+    var moveY=parseInt(getElement('moveDown').value);
+    var moveD=parseInt(getElement('moveDist').value);
+    var moveA=parseInt(getElement('moveAngle').value);
     console.log('move '+moveX+','+moveY+' '+moveD+'@'+moveA);
     if((moveD!=0)&&(moveA!=0)) { // polar coordinates - convert to cartesian
         moveA-=90;
@@ -629,30 +713,30 @@ id('confirmMove').addEventListener('click',function() {
         updateGraph(elID,['points',element.getAttribute('points')]);
     }
     else while(selection.length>0) { // or move all selected elements
-        element=id(selection.pop());
+        element=getElement(selection.pop());
         move(element,moveX,moveY);
     }
     showDialog('moveDialog',false);
-    // DONE BY re-member - id('undoButton').style.display='block';
+    // DONE BY re-member - getElement('undoButton').style.display='block';
     cancel();
 });
-id('spinButton').addEventListener('click',function() {
-    id('spinAngle').value=0;
+getElement('spinButton').addEventListener('click',function() {
+    getElement('spinAngle').value=0;
     showDialog('spinDialog',true);
 });
-id('confirmSpin').addEventListener('click',function() {
-    var spin=Number(id('spinAngle').value);
+getElement('confirmSpin').addEventListener('click',function() {
+    var spin=Number(getElement('spinAngle').value);
     if(selection.length<1) selection.push(elID);
     console.log('spin '+selection.length+' elements by '+spin+' degrees');
     re('member');
     var axis=null;
     if(anchor) { // spin around an anchor
         axis={};
-        axis.x=parseInt(id('anchor').getAttribute('cx'));
-        axis.y=parseInt(id('anchor').getAttribute('cy'));
+        axis.x=parseInt(getElement('anchor').getAttribute('cx'));
+        axis.y=parseInt(getElement('anchor').getAttribute('cy'));
     }
     else if(selection.length>1) { // spin around mid-point of multiple elements
-        var el=id(selection[0]);
+        var el=getElement(selection[0]);
         var box=getBounds(el);
         var minX=box.x;
         var maxX=box.x+box.width;
@@ -660,7 +744,7 @@ id('confirmSpin').addEventListener('click',function() {
         var maxY=box.y+box.height;
         console.log('first box '+minX+'-'+maxX+'x'+minY+'-'+maxY);
         for(var i=1;i<selection.length;i++) {
-            el=id(selection[i]);
+            el=getElement(selection[i]);
             box=getBounds(el);
             if(box.x<minX) minX=box.x;
             if((box.x+box.width)>maxX) maxX=box.x+box.width;
@@ -674,7 +758,7 @@ id('confirmSpin').addEventListener('click',function() {
     }
     if(axis) console.log('axis: '+axis.x+','+axis.y); else console.log('no axis');
     while(selection.length>0) {
-        element=id(selection.pop());
+        element=getElement(selection.pop());
         elID=element.id;
         console.log('spin '+type(element));
         var ox=0; // element origin
@@ -723,20 +807,20 @@ id('confirmSpin').addEventListener('click',function() {
     showDialog('spinDialog',false);
     cancel();
 })
-id('flipButton').addEventListener('click',function() {
+getElement('flipButton').addEventListener('click',function() {
     if(type(element)=='dim') return; // cannot flip dimensions
-    // id('copyLabel').style.color=(anchor)?'white':'gray';
-    // id('copy').disabled=!anchor;
+    // getElement('copyLabel').style.color=(anchor)?'white':'gray';
+    // getElement('copy').disabled=!anchor;
     console.log('show flip dialog');
-    // id('copy').checked=false;
+    // getElement('copy').checked=false;
     showDialog('flipDialog',true);
 });
-id('flipOptions').addEventListener('click',function() {
-    var opt=Math.floor((event.clientX-parseInt(id('flipDialog').offsetLeft)+5)/32);
+getElement('flipOptions').addEventListener('click',function() {
+    var opt=Math.floor((event.clientX-parseInt(getElement('flipDialog').offsetLeft)+5)/32);
     console.log('click on '+opt); // 0: horizontal; 1: vertical
     var axis={};
     var elNodes=null;
-    var el=id(selection[0]);
+    var el=getElement(selection[0]);
     var box=getBounds(el);
     var minX=box.x;
     var maxX=box.x+box.width;
@@ -744,7 +828,7 @@ id('flipOptions').addEventListener('click',function() {
     var maxY=box.y+box.height;
     console.log('first box '+minX+'-'+maxX+'x'+minY+'-'+maxY);
     for(var i=1;i<selection.length;i++) {
-        el=id(selection[i]);
+        el=getElement(selection[i]);
         box=getBounds(el);
         if(box.x<minX) minX=box.x;
         if((box.x+box.width)>maxX) maxX=box.x+box.width;
@@ -753,8 +837,8 @@ id('flipOptions').addEventListener('click',function() {
     }
     console.log('overall box '+minX+'-'+maxX+'x'+minY+'-'+maxY);
     if(anchor) { // flip around anchor
-        axis.x=parseInt(id('anchor').getAttribute('x'));
-        axis.y=parseInt(id('anchor').getAttribute('y'));
+        axis.x=parseInt(getElement('anchor').getAttribute('x'));
+        axis.y=parseInt(getElement('anchor').getAttribute('y'));
     }
     else { // flip in-situ around mid-point
         // copy=false;
@@ -765,7 +849,7 @@ id('flipOptions').addEventListener('click',function() {
     re('member');
     while(selection.length>0) { // for each selected item...
         elID=selection.shift();
-        el=id(elID);
+        el=getElement(elID);
         console.log('flip '+type(el)+' element '+el.id);
         switch (type(el)) {
             case 'line': // reverse x-coord of each point and each node
@@ -877,25 +961,25 @@ id('flipOptions').addEventListener('click',function() {
     }
     cancel();
     if(anchor) {
-        id('blue').removeChild(id('anchor'));
+        getElement('blue').removeChild(getElement('anchor'));
         anchor=false;
     }
     showDialog('flipDialog',false);
     // mode='select';
 });
-id('alignButton').addEventListener('click',function() {
+getElement('alignButton').addEventListener('click',function() {
     showDialog('alignDialog',true);
 });
-id('alignOptions').addEventListener('click',function() {
-    x0=parseInt(id('alignDialog').offsetLeft)+parseInt(id('alignOptions').offsetLeft);
-    y0=parseInt(id('alignDialog').offsetTop)+parseInt(id('alignOptions').offsetTop);
+getElement('alignOptions').addEventListener('click',function() {
+    x0=parseInt(getElement('alignDialog').offsetLeft)+parseInt(getElement('alignOptions').offsetLeft);
+    y0=parseInt(getElement('alignDialog').offsetTop)+parseInt(getElement('alignOptions').offsetTop);
     console.log('alignOptions at '+x0+','+y0);
     x=Math.floor((event.clientX-x0+5)/32); // 0-2
     y=Math.floor((event.clientY-y0+5)/32); // 0 or 1
     console.log('x: '+x+' y: '+y);
     var opt=y*3+x; // 0-5
     console.log('option '+opt);
-    var el=id(selection[0]);
+    var el=getElement(selection[0]);
     var box=getBounds(el);
     var minX=box.x;
     var maxX=box.x+box.width;
@@ -903,7 +987,7 @@ id('alignOptions').addEventListener('click',function() {
     var maxY=box.y+box.height;
     console.log('first box '+minX+'-'+maxX+'x'+minY+'-'+maxY);
     for(var i=1;i<selection.length;i++) {
-        el=id(selection[i]);
+        el=getElement(selection[i]);
         box=getBounds(el);
         if(box.x<minX) minX=box.x;
         if((box.x+box.width)>maxX) maxX=box.x+box.width;
@@ -915,7 +999,7 @@ id('alignOptions').addEventListener('click',function() {
     console.log('overall box '+minX+'-'+maxX+'x'+minY+'-'+maxY);
     re('member');
     for(i=0;i<selection.length;i++) {
-        el=id(selection[i]);
+        el=getElement(selection[i]);
         box=getBounds(el);
         console.log('move '+el.id+'?');
         switch(opt) {
@@ -947,12 +1031,12 @@ id('alignOptions').addEventListener('click',function() {
     showDialog('alignDialog',false);
     cancel();
     // selection=[];
-    // id('selection').innerHTML='';
+    // getElement('selection').innerHTML='';
 });
-id('copyButton').addEventListener('click',function() {
+getElement('copyButton').addEventListener('click',function() {
 	console.log('copy '+selection.length+' elements');
 	for(var i=0;i<selection.length;i++) {
-		element=id(selection[i]);
+		element=getElement(selection[i]);
 		var g={};
 		g.type=type(element);
 		if(g.type!='stamp') { // stamps don't have style
@@ -961,7 +1045,7 @@ id('copyButton').addEventListener('click',function() {
                 g.lineStyle=getLineStyle(element);
                 var val=element.getAttribute('fill');
                 if(val.startsWith('url')) {
-                	var p=id('pattern'+element.id);
+                	var p=getElement('pattern'+element.id);
                 	g.fillType='pattern'+p.getAttribute('index');
                 	g.fill=p.firstChild.getAttribute('fill');
                 }
@@ -1038,16 +1122,16 @@ id('copyButton').addEventListener('click',function() {
 	}
 	mode='move';
 });
-id('doubleButton').addEventListener('click',function() {
+getElement('doubleButton').addEventListener('click',function() {
     console.log(selection.length+' elements selected: '+elID);
     if(selection.length!=1) return; // can only double single selected...
     var t=type(element); // ...line, shape, box, oval or arc elements
     if((t=='text')||(t=='dim')||(t=='set')||(t=='anchor')) return;
     showDialog('doubleDialog',true);
 });
-id('confirmDouble').addEventListener('click',function() {
+getElement('confirmDouble').addEventListener('click',function() {
     console.log('DOUBLE');
-    var d=parseInt(id('offset').value);
+    var d=parseInt(getElement('offset').value);
     console.log('double offset: '+d+'mm');
     showDialog('doubleDialog',false);
     var graph={}; // initiate new element
@@ -1317,68 +1401,71 @@ id('confirmDouble').addEventListener('click',function() {
     addGraph(graph);
     cancel();
 });
-id('repeatButton').addEventListener('click',function() {
+getElement('repeatButton').addEventListener('click',function() {
     if(type(element)=='dim') return; // cannot move dimensions
     showDialog('textDialog',false);
-    id('countH').value=id('countV').value=1;
-    id('distH').value=id('distV').value=0;
+    getElement('countH').value=getElement('countV').value=1;
+    getElement('distH').value=getElement('distV').value=0;
     showDialog('repeatDialog',true);
 });
-id('confirmRepeat').addEventListener('click',function() {
-    var nH=parseInt(id('countH').value);
-    var nV=parseInt(id('countV').value);
-    var dH=parseInt(id('distH').value);
-    var dV=parseInt(id('distV').value);
+getElement('confirmRepeat').addEventListener('click',function() {
+    var nH=parseInt(getElement('countH').value);
+    var nV=parseInt(getElement('countV').value);
+    var dH=parseInt(getElement('distH').value);
+    var dV=parseInt(getElement('distV').value);
+    console.log(nH+' copies across at '+dH+'mm; '+nV+' copies down at '+dV+'mm');
+    var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
     for(var item of selection) {
-    	var el=id(item);
-    	console.log('repeat '+type(el));
-    	console.log(nH+' copies across at '+dH+'mm; '+nV+' copies down at '+dV+'mm');
-	    console.log(type(el)+' stroke: '+el.getAttribute('stroke'));
-    	for(var i=0;i<nH;i++) {
-        	for(var j=0;j<nV;j++) {
-            	if(i<1 && j<1) continue; // skip in-place duplicate
-            	var g={};
-            	g.type=type(el);
-            	if(g.type!='set') { // sets don't have style
-                	g.stroke=el.getAttribute('stroke');
-                	g.lineW=el.getAttribute('stroke-width');
-                	g.lineStyle=getLineStyle(el);
-                	g.fillType=el.getAttribute('fillType');
-                	if(g.fillType.startsWith('url')) {
-                		var p=id('pattern'+el.id);
-                		g.fillType='pattern'+p.getAttribute('index');
-                		g.fill=p.firstChild.getAttribute('fill');
-                	}
-                	g.fill=el.getAttribute('fill');
-                	var val=el.getAttribute('fill-opacity');
-                	if(val) g.opacity=val;
-            	}
-            	g.spin=el.getAttribute('spin');
-            	switch(g.type) {
+    	console.log('repeat graphs '+selection);
+    	var request=graphs.get(Number(item));
+    	request.onsuccess=function(e){
+    		var graph=request.result;
+    		console.log('repeat graph: '+graph)
+    		for(var i=0;i<nH;i++) {
+        		for(var j=0;j<nV;j++) {
+            		if(i<1 && j<1) continue; // skip in-place duplicate
+            		var g={}; // dulicate graph
+            		g.type=graph.type;
+            		if((g.type!='set')&&(g.type!='image')) { // sets don't have style
+                		g.lineW=g.lineW;
+                		g.lineStyle=graph.lineStyle;
+                		g.fillType=graph.fillType;
+                		/* PATTERN FILL
+                		if(g.fillType.startsWith('url')) {
+                			var p=getElement('pattern'+el.id);
+                			g.fillType='pattern'+p.getAttribute('index');
+                			g.fill=p.firstChild.getAttribute('fill');
+                		}
+                		*/
+                		g.fill=graph.fill;
+            		}
+            		g.spin=graph.spin;
+            		g.layer=graph.layer;
+            		switch(g.type) {
                 	case 'line':
                     	g.points='';
-                    	for(var p=0;p<el.points.length;p++) {
-                        	g.points+=el.points[p].x+(i*dH)+',';
-                        	g.points+=el.points[p].y+(j*dV)+' ';
+                    	for(var p=0;p<graph.points.length;p++) {
+                        	g.points+=graph.points[p].x+(i*dH)+',';
+                        	g.points+=graph.points[p].y+(j*dV)+' ';
                     	}
                     	break;
                 	case 'box':
-                    	g.x=Number(el.getAttribute('x'))+(i*dH);
-                    	g.y=Number(el.getAttribute('y'))+(j*dV);
-                    	g.width=Number(el.getAttribute('width'));
-                    	g.height=Number(el.getAttribute('height'));
-                    	g.radius=Number(el.getAttribute('rx'));
+                    	g.x=Number(graph.x)+(i*dH);
+                    	g.y=Number(graph.y)+(j*dV);
+                    	g.width=graph.width;
+                    	g.height=graph.height;
+                    	g.radius=graph.radius;
                     	console.log('copy['+i+','+j+'] '+g.type+' at '+g.x+','+g.y);
 	                    break;
                 	case 'oval':
-                    	g.cx=Number(el.getAttribute('cx'))+(i*dH);
-                    	g.cy=Number(el.getAttribute('cy'))+(j*dV);
-                    	g.rx=Number(el.getAttribute('rx'));
-                    	g.ry=Number(el.getAttribute('ry'));
+                    	g.cx=Number(graph.cx)+(i*dH);
+                    	g.cy=Number(graph.cy)+(j*dV);
+                    	g.rx=graph.rx;
+                    	g.ry=graph.ry;
                     	console.log('copy '+g.type+' at '+g.cx+','+g.cy);
                     	break;
                 	case 'arc':
-                    	var d=el.getAttribute('d');
+                    	var d=graph.d;
                     	getArc(d);
                     	g.cx=arc.cx+(i*dH);
                     	g.cy=arc.cy+(j*dV);
@@ -1392,64 +1479,80 @@ id('confirmRepeat').addEventListener('click',function() {
                     	console.log('copy['+i+','+j+'] of '+g.type+' at '+g.cx+','+g.cy);
                     	break;
                 	case 'text':
-                    	g.x=Number(el.getAttribute('x'))+(i*dH);
-                    	g.y=Number(el.getAttribute('y'))+(j*dV);
-                    	g.flip=Number(el.getAttribute('flip'));
-                    	g.text=el.innerHTML;
-                    	g.textSize=Number(el.getAttribute('font-size'))/scale;
-                    	var style=el.getAttribute('font-style');
-                    	g.textStyle=(style=='italic')?'italic':'fine';
-                    	if(el.getAttribute('font-weight')=='bold') g.textStyle='bold';
+                    	g.x=Number(graph.x)+(i*dH);
+                    	g.y=Number(graph.y)+(j*dV);
+                    	g.flip=graph.flip;
+                    	g.text=graph.text;
+                    	g.textFont=graph.textFont;
+                    	g.textSize=graph.textSize;
+                    	g.textStyle=graph.textStyle;
                     	break;
                 	case 'set':
-                    	g.x=Number(el.getAttribute('x'))+(i*dH);
-                    	g.y=Number(el.getAttribute('y'))+(j*dV);
-                    	g.flip=Number(el.getAttribute('flip'));
-                    	g.name=el.getAttribute('href').substr(1); // strip off leading #
+                    	g.x=Number(graph.x)+(i*dH);
+                    	g.y=Number(graph.y)+(j*dV);
+                    	g.flip=graph.flip;
+                    	g.name=graph.name;
                     	break;
+                    case 'image':
+                    	g.x=Number(graph.x)+(i*dH);
+                    	g.y=Number(graph.y)+(j*dV);
+                    	g.width=graph.width;
+                    	g.height=graph.height;
+                    	g.href=graph.href;
+            		}
+            		console.log('add graph type '+g.type);
+            		addGraph(g); // ENSURE THIS CREATES SEPARATE GRAPHS & NOT SAME ONE SEVERAL TIMES!
             	}
-            	addGraph(g); // ENSURE THIS CREATES SEPARATE GRAPHS & NOT SAME ONE SEVERAL TIMES!
+            	
         	}
     	}
     }
     showDialog('repeatDialog',false);
     cancel();
 });
-id('filletButton').addEventListener('click',function() {
+getElement('filletButton').addEventListener('click',function() {
     if(type(element!='box')) return; // can only fillet box corners
-    id('filletR').value=parseInt(element.getAttribute('rx'));
+    getElement('filletR').value=parseInt(element.getAttribute('rx'));
     showDialog('filletDialog',true);
 });
-id('confirmFillet').addEventListener('click',function() {
+getElement('confirmFillet').addEventListener('click',function() {
     re('member');
-    var r=parseInt(id('filletR').value);
+    var r=parseInt(getElement('filletR').value);
     element.setAttribute('rx',r);
     updateGraph(elID,['radius',r]);
     showDialog('filletDialog',false);
     showInfo(false);
     cancel();
 });
-id('anchorButton').addEventListener('click',function() {
+getElement('anchorButton').addEventListener('click',function() {
     mode='anchor';
     hint('ANCHOR: tap a node');
 });
-id('joinButton').addEventListener('click',function() {
-    id('setName').value='';
+getElement('joinButton').addEventListener('click',function() {
+    getElement('setName').value='';
     if((selection.length>1)&&anchor) showDialog('joinDialog',true);
     else alert('Please place an anchor for the set');
 });
-id('confirmJoin').addEventListener('click',function() {
-    var name=id('setName').value;
+getElement('confirmJoin').addEventListener('click',function() {
+    var name=getElement('setName').value;
     if(!name) {
         alert('Enter a name for the set');
         return;
     }
-    var ax=parseInt(id('anchor').getAttribute('cx'));
-    var ay=parseInt(id('anchor').getAttribute('cy'));
+    var ax=parseInt(getElement('anchor').getAttribute('x'));
+    var ay=parseInt(getElement('anchor').getAttribute('y'));
     var json='{"name":"'+name+'","svg":"';
     console.log('preliminary JSON: '+json+' anchor at '+ax+','+ay);
-    for(i=0;i<selection.length;i++) {
-        el=id(selection[i]);
+    // sort selected elements in order drawn
+    var elements=getElement('dwg').children;
+    console.log(elements.length+' elements'+elements);
+    var set=[];
+    for(var i=0;i<elements.length;i++) {
+    	if(selection.includes(elements[i].id)) set.push(elements[i]);
+    }
+    console.log('set of elements: '+set);
+    for(i=0;i<set.length;i++) {
+        el=set[i];
         var t=type(el);
         console.log('add '+t+' element?');
         if((t=='dim')||(t=='set')) continue; // don't include dimensions or sets
@@ -1486,16 +1589,21 @@ id('confirmJoin').addEventListener('click',function() {
                 d='M'+arc.cx+','+arc.cy+' M'+arc.x1+','+arc.y1+' A'+arc.r+','+arc.r+' 0 '+arc.major+','+arc.sweep+' '+arc.x2+','+arc.y2;
                 json+="<path d=\'"+d+"\' spin=\'"+el.getAttribute('spin')+"\' ";
                 break;
-            case 'text':
-                json+="<text x=\'"+parseInt(el.getAttribute('x'))-ax+"\' y=\'"+parseInt(el.getAttribute('y'))-ay+"\' ";
+            case 'text':+','+
+            	console.log('x,y is '+el.getAttribute('x')+','+el.getAttribute('y'));
+                json+="<text x=\'"+(parseInt(el.getAttribute('x'))-ax)+"\' y=\'"+(parseInt(el.getAttribute('y'))-ay)+"\' ";
+                console.log('json so far '+json);
                 json+="spin=\'"+el.getAttribute('spin')+"\' flip=\'"+el.getAttribute('flip')+"\' ";
                 json+="stroke=\'"+el.getAttribute('stroke')+"\' fill=\'"+el.getAttribute('fill')+"\' ";
-                json+="font-size=\'"+el.getAttribute('font-size')+"/' ";
+                json+="font-family=\'"+el.getAttribute('font-family')+"\' font-style=\'"+el.getAttribute('font-style')+"\' ";
+                json+="font-size=\'"+el.getAttribute('font-size')+"\' font-weight=\'"+el.getAttribute('font-weight')+"\'";
+                /*
                 var val=el.getAttribute('font-style');
                 if(val) json+="font-style=\'"+val+"\' ";
                 val=el.getAttribute('font-weight');
                 if(val) json+="font-weight=\'"+val+"\' ";
-                json+=">"+el.innerHTML+"</text>";
+                */
+                json+=">"+el.getAttribute('text')+"</text>";
         }
         if(t!='text') { // set style and complete svg
             json+="stroke=\'"+el.getAttribute('stroke')+"\' stroke-width=\'"+el.getAttribute('stroke-width')+"\' ";
@@ -1509,21 +1617,24 @@ id('confirmJoin').addEventListener('click',function() {
         console.log('JSON so far: '+json);
     }
     json+='"}';
-    console.log('set JSON: '+json);
+    console.log('save set JSON: '+json);
+    addSet(json);
+    /* CODE TO SAVE SSET AS JSON FILE
     download(json,name+'.json','text/plain');
+    */
     showDialog('joinDialog',false);
 });
 // STYLES
-id('line').addEventListener('click',function() {
+getElement('line').addEventListener('click',function() {
 	// setStyle(); // NEW
     showDialog('stylesDialog',true);
 });
-id('lineType').addEventListener('change',function() {
+getElement('lineType').addEventListener('change',function() {
     var type=event.target.value;
     if(selection.length>0) {
     	for (var i=0;i<selection.length;i++) {
     		console.log('change line width for selected element '+i);
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		w=parseInt(el.getAttribute('stroke-width'));
     		var val=null;
         	switch(type) {
@@ -1549,14 +1660,14 @@ id('lineType').addEventListener('change',function() {
     else { // change default line type
         lineType=type;
     }
-    id('line').style.borderBottomStyle=type;
+    getElement('line').style.borderBottomStyle=type;
 });
-id('penSelect').addEventListener('change',function() {
+getElement('penSelect').addEventListener('change',function() {
     var val=event.target.value;
     // NEW CODE...
     if(selection.length>0) {
     	for(var i=0;i<selection.length;i++) {
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		var lineW=val*scale;
         	el.setAttribute('stroke-width',lineW);
         	if(el.getAttribute('stroke-dasharray')) el.setAttribute('stroke-dasharray',lineW+' '+lineW);
@@ -1565,7 +1676,7 @@ id('penSelect').addEventListener('change',function() {
     }
     /* OLD CODE
     if(elID) { // change selected element
-        element=id(elID);
+        element=getElement(elID);
         var lineW=val*scale;
         element.setAttribute('stroke-width',lineW);
         if(element.getAttribute('stroke-dasharray')) element.setAttribute('stroke-dasharray',lineW+' '+lineW);
@@ -1577,14 +1688,14 @@ id('penSelect').addEventListener('change',function() {
         pen=val;
         // console.log('pen is '+pen);
     }
-    id('line').style.borderWidth=(pen/scaleF)+'px';
+    getElement('line').style.borderWidth=(pen/scaleF)+'px';
 });
-id('textSize').addEventListener('change',function() {
+getElement('textSize').addEventListener('change',function() {
     var val=event.target.value;
     console.log('set text size for '+selection.length+' items');
     if(selection.length>0) {
     	for(var i=0;i<selection.length;i++) {
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		if(type(el)=='text') {
             	el.setAttribute('font-size',val*scale);
             	updateGraph(el.id,['textSize',val]);
@@ -1593,12 +1704,12 @@ id('textSize').addEventListener('change',function() {
     }
     textSize=val; // change default text size
 });
-id('textFont').addEventListener('change',function() {
+getElement('textFont').addEventListener('change',function() {
 	var val=event.target.value;
     console.log('set text font to '+val+' for '+selection.length+' items');
     if(selection.length>0) {
     	for(var i=0;i<selection.length;i++) {
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		if(type(el)=='text') {
             	el.setAttribute('font-family',val);
             	updateGraph(el.id,['textFont',val]);
@@ -1607,11 +1718,11 @@ id('textFont').addEventListener('change',function() {
     }
     textSize=val; // change default text font
 });
-id('textStyle').addEventListener('change',function() {
+getElement('textStyle').addEventListener('change',function() {
     var val=event.target.value;
     if(selection.length>0) {
     	for(var i=0;i<selection.length;i++) {
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		 if(type(el)=='text') {
             	switch(val) {
                 	case 'fine':
@@ -1634,25 +1745,25 @@ id('textStyle').addEventListener('change',function() {
         textStyle=val;
     }
 });
-id('lineColor').addEventListener('click',function() {
+getElement('lineColor').addEventListener('click',function() {
     // console.log('show shadeMenu');
-    id('colorPicker').mode='line';
+    getElement('colorPicker').mode='line';
     showcolorPicker(true,event.clientX-16,event.clientY-16);
 });
-id('fillType').addEventListener('change',function() {
+getElement('fillType').addEventListener('change',function() {
     var type=event.target.value;
     console.log('fill type: '+type);
     if(selection.length>0) {
-    	var col=id('fillColor').value;
+    	var col=getElement('fillColor').value;
     	for (var i=0;i<selection.length;i++) {
     		console.log('change fill type for selected element '+i);
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		if(type=='pattern') {
     			showDialog('patternMenu',true);
     			return;
     		}
     		else {
-    			var ptn=id('pattern'+el.id); // attempt removal of any associated pattern
+    			var ptn=getElement('pattern'+el.id); // attempt removal of any associated pattern
     			if(ptn) ptn.remove();
 	        	el.setAttribute('fill',(type=='none')?'none':col);
     		}
@@ -1662,41 +1773,41 @@ id('fillType').addEventListener('change',function() {
     else { // change default fillType type
         fillType=type;
     }
-    id('fill').style.background=(type=='none')?'none':fillCol;
+    getElement('fill').style.background=(type=='none')?'none':fillCol;
 });
-id('fillColor').addEventListener('click',function() {
+getElement('fillColor').addEventListener('click',function() {
 	console.log('show colour menu');
-	id('colorPicker').style.display='block';
-	id('colorPicker').mode='fill';
+	getElement('colorPicker').style.display='block';
+	getElement('colorPicker').mode='fill';
 	var color=showcolorPicker(true,event.clientX-16,event.clientY-16);
 	/*
     console.log('show shadeMenu');
-    id('shadeMenu').mode='fill';
+    getElement('shadeMenu').mode='fill';
     var shade=showShadeMenu(true,event.clientX-16,event.clientY-16);
     */
 });
-id('opacity').addEventListener('change',function() {
+getElement('opacity').addEventListener('change',function() {
     var val=event.target.value;
     // NEW CODE...
     if(selection.length>0) {
     	for(var i=0;i<selection.length;i++) {
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		el.setAttribute('stroke-opacity',val);
     		el.setAttribute('fill-opacity',val);
         	updateGraph(el.id,['opacity',val]);
     	}
     }
     else opacity=val; // change default opacity
-    id('fill').style.opacity=val;
+    getElement('fill').style.opacity=val;
 });
-id('blur').addEventListener('change',function() {
+getElement('blur').addEventListener('change',function() {
     var val=event.target.value;
     console.log('blur: '+val);
     if(selection.length>0) {
-    	var col=id('fillColor').value;
+    	var col=getElement('fillColor').value;
     	for (var i=0;i<selection.length;i++) {
     		console.log('change blur for selected element '+i);
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		if(val>0) el.setAttribute('filter','url(#blur'+val+')');
         	else el.setAttribute('filter','none');
         	updateGraph(el.id,['blur',val]);
@@ -1704,13 +1815,13 @@ id('blur').addEventListener('change',function() {
     }
     else blur=val; // change default blur
 });
-id('patternOption').addEventListener('click',function() {
+getElement('patternOption').addEventListener('click',function() {
 	console.log('click "pattern" - fill is '+element.getAttribute('fill'));
 	if(element && element.getAttribute('fill').startsWith('url')) showDialog('patternMenu',true);
 });
-id('patternMenu').addEventListener('click',function(event) {
-	x=Math.floor((event.clientX-56)/32);
-	y=Math.floor((event.clientY-12)/32);
+getElement('patternMenu').addEventListener('click',function(event) {
+	x=Math.floor((event.clientX-50)/32);
+	y=Math.floor((event.clientY-50)/32);
 	var n=y*6+x;
 	var fill=element.getAttribute('fill');
 	console.log('set element fill (currently '+fill+') to pattern'+n);
@@ -1718,24 +1829,24 @@ id('patternMenu').addEventListener('click',function(event) {
 	if(pattern[n].spin>0) html+=" patternTransform='rotate("+pattern[n].spin+")'";
 	html+='>'+pattern[n].svg+'</pattern>';
 	console.log('pattern HTML: '+html);
-	id('defs').innerHTML+=html;
-	var el=id('pattern'+element.id);
+	getElement('defs').innerHTML+=html;
+	var el=getElement('pattern'+element.id);
 	// console.log('pattern code '+el.innerHTML);
-	id('pattern'+element.id).firstChild.setAttribute('fill',fill);
-	id('pattern'+element.id).lastChild.setAttribute('fill',fill);
+	getElement('pattern'+element.id).firstChild.setAttribute('fill',fill);
+	getElement('pattern'+element.id).lastChild.setAttribute('fill',fill);
 	element.setAttribute('fill','url(#pattern'+element.id+')');
 	 updateGraph(element.id,['fillType','pattern'+n]);
 	// element.setAttribute('fill','url(#pattern'+y+x+')');
 	// updateGraph(element.id,['fillType','pattern','fill','url(#pattern'+y+x+')'])
 });
-id('colorPicker').addEventListener('click',function(e) {
+getElement('colorPicker').addEventListener('click',function(e) {
 	var val=e.target.id;
 	showcolorPicker(false);
-	if(id('colorPicker').mode=='line') { // line colour
+	if(getElement('colorPicker').mode=='line') { // line colour
         if(val=='white') val='blue';
         if(selection.length>0) { // change line shade of selected elements
         	for(var i=0;i<selection.length;i++) {
-        		var el=id(selection[i]);
+        		var el=getElement(selection[i]);
         		if(type(el)=='text') {
         			el.setAttribute('fill',val);
         			updateGraph(el.id,['fill',val]);
@@ -1747,7 +1858,7 @@ id('colorPicker').addEventListener('click',function(e) {
                     	console.log('blue line - shift to <ref>');
                     	el.setAttribute('stroke-width',0.25*scale); // ...with thin lines...
                     	el.setAttribute('fill','none'); // ...and no fill
-                    	// id('ref').appendChild(el); // move to <ref> layer ******* INSTEAD PUT ON LAYER 0 *******
+                    	// getElement('ref').appendChild(el); // move to <ref> layer ******* INSTEAD PUT ON LAYER 0 *******
                     	remove(el.id,true); // remove from database keeping nodes for snap
                     	for(var j=0;j<dims.length;j++) { // ...and remove any linked dimensions
                         	if((Math.floor(dims[j].n1/10)==Number(el.id))||(Math.floor(dims[j].n2/10)==Number(el.id))) {
@@ -1765,33 +1876,33 @@ id('colorPicker').addEventListener('click',function(e) {
             if(val=='blue') val='black'; // cannot have blue <ref> choice as default
             lineColor=val;
         }
-        id('line').style.borderColor=val;
-        id('lineColor').style.backgroundColor=val;
+        getElement('line').style.borderColor=val;
+        getElement('lineColor').style.backgroundColor=val;
     }
     else { // fill colour
     	if(selection.length>0) { // change line shade of selected elements
     		for (var i=0;i<selection.length;i++) {
     		console.log('change fill colour for selected element '+i);
-    		var el=id(selection[i]);
+    		var el=getElement(selection[i]);
     		if(type(el)=='text') continue; // text fill colour uses line colour
-    		var fill=id('fillType').value;
-        	if(fill=='pattern') id('pattern'+element.id).firstChild.setAttribute('fill',val);
+    		var fill=getElement('fillType').value;
+        	if(fill=='pattern') getElement('pattern'+element.id).firstChild.setAttribute('fill',val);
         	else el.setAttribute('fill',(fill=='solid')?val:'none');
         	updateGraph(el.id,['fill',val]);
     	}
     	}
         else {fillColor=val;} // change default fill shade
-        id('fill').style.background=val;
-        id('fillColor').style.backgroundColor=val;
+        getElement('fill').style.background=val;
+        getElement('fillColor').style.backgroundColor=val;
     }
 });
 // DRAWING POINTER DOWN
-id('graphic').addEventListener('pointerdown',function(e) {
+getElement('graphic').addEventListener('pointerdown',function(e) {
     console.log('pointer down - mode is '+mode);
-    re('wind'); // WAS id('undoButton').style.display='none';
+    re('wind'); // WAS getElement('undoButton').style.display='none';
     event.preventDefault();
     if(currentDialog) showDialog(currentDialog,false); // clicking drawing removes any dialogs/menus
-    id('colorPicker').style.display='none';
+    getElement('colorPicker').style.display='none';
     scr.x=Math.round(event.clientX);
     scr.y=Math.round(event.clientY);
     x=x0=Math.round(scr.x*scaleF/zoom+dwg.x);
@@ -1813,14 +1924,14 @@ id('graphic').addEventListener('pointerdown',function(e) {
     }
     else if(holder=='handles') { // handle
         console.log('HANDLE '+val);
-        var handle=id(val);
+        var handle=getElement(val);
         var bounds=getBounds(element);
         console.log('bounds: '+bounds.x+','+bounds.y+' '+bounds.width+'x'+bounds.height);
-        id('blueBox').setAttribute('x',bounds.x);
-        id('blueBox').setAttribute('y',bounds.y);
-        id('blueBox').setAttribute('width',bounds.width);
-        id('blueBox').setAttribute('height',bounds.height);
-        id('guides').style.display='block';
+        getElement('blueBox').setAttribute('x',bounds.x);
+        getElement('blueBox').setAttribute('y',bounds.y);
+        getElement('blueBox').setAttribute('width',bounds.width);
+        getElement('blueBox').setAttribute('height',bounds.height);
+        getElement('guides').style.display='block';
         re('member');
         if(val.startsWith('mover')) {
             node=parseInt(val.substr(5)); // COULD GO AT START OF HANDLES SECTION
@@ -1908,20 +2019,20 @@ id('graphic').addEventListener('pointerdown',function(e) {
                     offset.x=offset.y=0;
                     break;
                 case 'dim':
-                    id('blueBox').setAttribute('width',0);
-                    id('blueBox').setAttribute('height',0);
+                    getElement('blueBox').setAttribute('width',0);
+                    getElement('blueBox').setAttribute('height',0);
                     mode='dimAdjust';
                     x0=parseInt(element.firstChild.getAttribute('x1'));
                     y0=parseInt(element.firstChild.getAttribute('y1'));
                     dx=parseInt(element.firstChild.getAttribute('x2'))-x0;
                     dy=parseInt(element.firstChild.getAttribute('y2'))-y0;
-                    id('blueLine').setAttribute('x1',x0);
-                    id('blueLine').setAttribute('y1',y0);
-                    id('blueLine').setAttribute('x2',(x0+dx));
-                    id('blueLine').setAttribute('y2',(y0+dy));
+                    getElement('blueLine').setAttribute('x1',x0);
+                    getElement('blueLine').setAttribute('y1',y0);
+                    getElement('blueLine').setAttribute('x2',(x0+dx));
+                    getElement('blueLine').setAttribute('y2',(y0+dy));
                     var spin=element.getAttribute('transform');
-                    id('blueLine').setAttribute('transform',spin);
-                    id('guides').style.display='block';
+                    getElement('blueLine').setAttribute('transform',spin);
+                    getElement('guides').style.display='block';
                     hint('MOVE DIMENSION (UP/DOWN)');
                     break;
                 case 'set':
@@ -1941,10 +2052,10 @@ id('graphic').addEventListener('pointerdown',function(e) {
                     break;
             }
             console.log('offsets: '+offset.x+','+offset.y);
-            id('blueBox').setAttribute('x',x+offset.x);
-            id('blueBox').setAttribute('y',y+offset.y);
-            id('guides').style.display='block';
-            id('graphic').addEventListener('pointermove',drag);
+            getElement('blueBox').setAttribute('x',x+offset.x);
+            getElement('blueBox').setAttribute('y',y+offset.y);
+            getElement('guides').style.display='block';
+            getElement('graphic').addEventListener('pointermove',drag);
             return;
         }
         else if(val.startsWith('sizer')) {
@@ -2006,10 +2117,10 @@ id('graphic').addEventListener('pointerdown',function(e) {
                 case 'shape':
                     mode='movePoint'+node;
                     var points=element.getAttribute('points');
-                    id('bluePolyline').setAttribute('points',points);
-                    id('blueBox').setAttribute('width',0);
-                    id('blueBox').setAttribute('height',0);
-                    id('guides').style.display='block';
+                    getElement('bluePolyline').setAttribute('points',points);
+                    getElement('blueBox').setAttribute('width',0);
+                    getElement('blueBox').setAttribute('height',0);
+                    getElement('guides').style.display='block';
                     break;
                 case 'box':
                     mode='boxSize';
@@ -2026,23 +2137,23 @@ id('graphic').addEventListener('pointerdown',function(e) {
                     x0=arc.cx;
                     y0=arc.cy;
                     console.log('arc centre: '+x0+','+y0+' radius: '+arc.radius);
-                    id('blueBox').setAttribute('width',0);
-                    id('blueBox').setAttribute('height',0);
-                    id('blueOval').setAttribute('cx',x0); // circle for radius
-                    id('blueOval').setAttribute('cy',y0);
-                    id('blueOval').setAttribute('rx',arc.r);
-                    id('blueOval').setAttribute('ry',arc.r);
-                    id('blueLine').setAttribute('x1',x0); // prepare radius
-                    id('blueLine').setAttribute('y1',y0);
-                    id('blueLine').setAttribute('x2',x0);
-                    id('blueLine').setAttribute('y2',y0);
-                    id('guides').style.display='block';
+                    getElement('blueBox').setAttribute('width',0);
+                    getElement('blueBox').setAttribute('height',0);
+                    getElement('blueOval').setAttribute('cx',x0); // circle for radius
+                    getElement('blueOval').setAttribute('cy',y0);
+                    getElement('blueOval').setAttribute('rx',arc.r);
+                    getElement('blueOval').setAttribute('ry',arc.r);
+                    getElement('blueLine').setAttribute('x1',x0); // prepare radius
+                    getElement('blueLine').setAttribute('y1',y0);
+                    getElement('blueLine').setAttribute('x2',x0);
+                    getElement('blueLine').setAttribute('y2',y0);
+                    getElement('guides').style.display='block';
                     break;
                 case 'image':
                 	mode='imageSize';
                 	break;
             }
-            id('graphic').addEventListener('pointermove',drag);
+            getElement('graphic').addEventListener('pointermove',drag);
             return;
         }
     }
@@ -2055,17 +2166,17 @@ id('graphic').addEventListener('pointerdown',function(e) {
     console.log('mode: '+mode);
     switch(mode) {
     	case 'curve':
-            blueline=id('bluePolyline');
-            var point=id('svg').createSVGPoint();
+            blueline=getElement('bluePolyline');
+            var point=getElement('svg').createSVGPoint();
             point.x=x;
             point.y=y;
             blueline.points[0]=point;
-            id('guides').style.display='block';
+            getElement('guides').style.display='block';
             console.log('start point: '+x+','+y+'; points: '+blueline.points);
             break;
         case 'line':
-            blueline=id('bluePolyline');
-            var point=id('svg').createSVGPoint();
+            blueline=getElement('bluePolyline');
+            var point=getElement('svg').createSVGPoint();
             point.x=x;
             point.y=y;
             if(blueline.points.length>1) {
@@ -2078,34 +2189,34 @@ id('graphic').addEventListener('pointerdown',function(e) {
             else if(blueline.points.length>0) blueline.points[0]=point;
             blueline.points.appendItem(point);
             refreshNodes(blueline); // set blueline nodes to match new point
-            id('guides').style.display='block';
+            getElement('guides').style.display='block';
             hint('LINES: drag to next point; tap twice to end lines or on start to close shape');
             break;
         case 'box':
-            id('blueBox').setAttribute('x',x0);
-            id('blueBox').setAttribute('y',y0);
-            id('guides').style.display='block';
+            getElement('blueBox').setAttribute('x',x0);
+            getElement('blueBox').setAttribute('y',y0);
+            getElement('guides').style.display='block';
             hint('drag to size');
             break;
         case 'oval':
-            id('blueOval').setAttribute('cx',x0);
-            id('blueOval').setAttribute('cy',y0);
-            id('guides').style.display='block';
+            getElement('blueOval').setAttribute('cx',x0);
+            getElement('blueOval').setAttribute('cy',y0);
+            getElement('guides').style.display='block';
             hint('drag to size');
             break;
         case 'arc':
             arc.x1=x0;
             arc.y1=y0;
             hint('ARC: drag to centre');
-            id('blueLine').setAttribute('x1',arc.x1);
-            id('blueLine').setAttribute('y1',arc.y1);
-            id('blueLine').setAttribute('x2',arc.x1);
-            id('blueLine').setAttribute('y2',arc.y1);
-            id('guides').style.display='block';
+            getElement('blueLine').setAttribute('x1',arc.x1);
+            getElement('blueLine').setAttribute('y1',arc.y1);
+            getElement('blueLine').setAttribute('x2',arc.x1);
+            getElement('blueLine').setAttribute('y2',arc.y1);
+            getElement('guides').style.display='block';
             break;
         case 'text':
             console.log('show text dialog');
-            id('text').value='';
+            getElement('text').value='';
             showDialog('textDialog',true);
             mode='writing';
             break;
@@ -2131,21 +2242,21 @@ id('graphic').addEventListener('pointerdown',function(e) {
             break;
         case 'select':
         case 'pointEdit':
-            id('selectionBox').setAttribute('x',x0);
-            id('selectionBox').setAttribute('y',y0);
-            id('guides').style.display='block';
+            getElement('selectionBox').setAttribute('x',x0);
+            getElement('selectionBox').setAttribute('y',y0);
+            getElement('guides').style.display='block';
             selectionBox.x=x0;
             selectionBox.y=y0;
             selectionBox.w=selectionBox.h=0;
     }
     event.stopPropagation();
     console.log('exit pointer down code');
-    if(mode!='set') id('graphic').addEventListener('pointermove',drag);
+    if(mode!='set') getElement('graphic').addEventListener('pointermove',drag);
 });
 // DRAWING POINTER MOVE
 function drag(event) {
     event.preventDefault();
-    id('datumSet').style.display='block'; // show datum lines while dragging
+    getElement('datumSet').style.display='block'; // show datum lines while dragging
     scr.x=Math.round(event.clientX);
     scr.y=Math.round(event.clientY);
     x=Math.round(scr.x*scaleF/zoom+dwg.x);
@@ -2163,8 +2274,8 @@ function drag(event) {
     if(mode.startsWith('movePoint')) {
         // var n=parseInt(mode.substr(9));
         // console.log('drag polyline point '+n);
-        id('bluePolyline').points[node].x=x;
-        id('bluePolyline').points[node].y=y;
+        getElement('bluePolyline').points[node].x=x;
+        getElement('bluePolyline').points[node].y=y;
     }
     else switch(mode) {
     	case 'curve':
@@ -2173,7 +2284,7 @@ function drag(event) {
             var d=Math.sqrt(dx*dx+dy*dy);
             if(d>10) {
                 console.log('add point');
-                var point=id('svg').createSVGPoint();
+                var point=getElement('svg').createSVGPoint();
                 point.x=x;
                 point.y=y;
                 blueline.points.appendItem(point);
@@ -2185,16 +2296,16 @@ function drag(event) {
             if(selection.length>1) { // move multiple selection
                 dx=x-x0;
                 dy=y-y0;
-                id('selection').setAttribute('transform','translate('+dx+','+dy+')');
+                getElement('selection').setAttribute('transform','translate('+dx+','+dy+')');
             }
             else { // drag  single element
-                id('blueBox').setAttribute('x',Number(x)+Number(offset.x));
-                id('blueBox').setAttribute('y',Number(y)+Number(offset.y));
+                getElement('blueBox').setAttribute('x',Number(x)+Number(offset.x));
+                getElement('blueBox').setAttribute('y',Number(y)+Number(offset.y));
                 // console.log('dragged to '+x+','+y);
             }
             if(anchor) {
-                id('anchor').setAttribute('x',x);
-                id('anchor').setAttribute('y',y);
+                getElement('anchor').setAttribute('x',x);
+                getElement('anchor').setAttribute('y',y);
             }
             setSizes('polar',null,x0,y0,x,y);
             break;
@@ -2210,12 +2321,12 @@ function drag(event) {
             y=parseInt(element.getAttribute('y'));
             w=parseInt(element.getAttribute('width'));
             h=parseInt(element.getAttribute('height'));
-            if(node%2>0) id('blueBox').setAttribute('x',(x-dx)); // sizing left edge
-            if(node<3) id('blueBox').setAttribute('y',(y-dy)); // sizing top edge
+            if(node%2>0) getElement('blueBox').setAttribute('x',(x-dx)); // sizing left edge
+            if(node<3) getElement('blueBox').setAttribute('y',(y-dy)); // sizing top edge
             w+=dx;
             h+=dy;
-            id('blueBox').setAttribute('width',w);
-            id('blueBox').setAttribute('height',h);
+            getElement('blueBox').setAttribute('width',w);
+            getElement('blueBox').setAttribute('height',h);
             setSizes('box',null,w,h);
             break;
         case 'ovalSize':
@@ -2232,12 +2343,12 @@ function drag(event) {
             h=parseInt(element.getAttribute('ry'))*2;
             x-=w/2; // left
             y-=h/2; // top
-            if(node%2>0) id('blueBox').setAttribute('x',(x-dx)); // sizing left edge
-            if(node<3) id('blueBox').setAttribute('y',(y-dy)); // sizing top edge
+            if(node%2>0) getElement('blueBox').setAttribute('x',(x-dx)); // sizing left edge
+            if(node<3) getElement('blueBox').setAttribute('y',(y-dy)); // sizing top edge
             w+=dx;
             h+=dy;
-            id('blueBox').setAttribute('width',w);
-            id('blueBox').setAttribute('height',h);
+            getElement('blueBox').setAttribute('width',w);
+            getElement('blueBox').setAttribute('height',h);
             console.log('set size to '+w+'x'+h);
             setSizes('oval',null,w,h);
             break;
@@ -2246,21 +2357,21 @@ function drag(event) {
             dy=y-y0;
             var r=Math.sqrt((dx*dx)+(dy*dy));
             if(Math.abs(r-arc.r)<snapD) { // change angle but not radius
-                id('blueLine').setAttribute('x2',x);
-                id('blueLine').setAttribute('y2',y);
-                id('blueOval').setAttribute('rx',arc.r);
-                id('blueOval').setAttribute('ry',arc.r);
+                getElement('blueLine').setAttribute('x2',x);
+                getElement('blueLine').setAttribute('y2',y);
+                getElement('blueOval').setAttribute('rx',arc.r);
+                getElement('blueOval').setAttribute('ry',arc.r);
                 var a=Math.atan(dy/dx); // radians
                 a=a*180/Math.PI+90; // 'compass' degrees
                 if(dx<0) a+=180;
-                id('second').value=a; // new angle
+                getElement('second').value=a; // new angle
             }
             else { // change radius but not angle
-                id('blueOval').setAttribute('rx',r);
-                id('blueOval').setAttribute('ry',r);
-                id('blueLine').setAttribute('x2',x0);
-                id('blueLine').setAttribute('y2',y0);
-                id('first').value=r; // new radius
+                getElement('blueOval').setAttribute('rx',r);
+                getElement('blueOval').setAttribute('ry',r);
+                getElement('blueLine').setAttribute('x2',x0);
+                getElement('blueLine').setAttribute('y2',y0);
+                getElement('first').value=r; // new radius
             }
             break;
         case 'imageSize':
@@ -2275,16 +2386,16 @@ function drag(event) {
             else dx=dy/ratio;
             w+=dx;
             h+=dy;
-            id('blueBox').setAttribute('width',w);
-            id('blueBox').setAttribute('height',h);
+            getElement('blueBox').setAttribute('width',w);
+            getElement('blueBox').setAttribute('height',h);
             setSizes('image',null,w,h);
         	break;
         case 'pan':
             dx=dwg.x-(x-x0);
             dy=dwg.y-(y-y0);
             // console.log('drawing x,y: '+dx+','+dy);
-            id('svg').setAttribute('viewBox',dx+' '+dy+' '+(dwg.w*scale/zoom)+' '+(dwg.h*scale/zoom));
-            id('paper').setAttribute('viewBox',dx+' '+dy+' '+(dwg.w*scale/zoom)+' '+(dwg.h*scale/zoom));
+            getElement('svg').setAttribute('viewBox',dx+' '+dy+' '+(dwg.w*scale/zoom)+' '+(dwg.h*scale/zoom));
+            getElement('paper').setAttribute('viewBox',dx+' '+dy+' '+(dwg.w*scale/zoom)+' '+(dwg.h*scale/zoom));
             break;
         case 'line':
             if(Math.abs(x-x0)<snapD) x=x0; // snap to vertical
@@ -2305,10 +2416,10 @@ function drag(event) {
             if(Math.abs(w-h)<snapD*2) w=h; // snap to square
             var left=(x<x0)?(x0-w):x0;
             var top=(y<y0)?(y0-h):y0;
-            id('blueBox').setAttribute('x',left);
-            id('blueBox').setAttribute('y',top);
-            id('blueBox').setAttribute('width',w);
-            id('blueBox').setAttribute('height',h);
+            getElement('blueBox').setAttribute('x',left);
+            getElement('blueBox').setAttribute('y',top);
+            getElement('blueBox').setAttribute('width',w);
+            getElement('blueBox').setAttribute('height',h);
             setSizes('box',null,w,h);
             break;
         case 'oval':
@@ -2317,10 +2428,10 @@ function drag(event) {
             if(Math.abs(w-h)<snapD*2) w=h; // snap to circle
             var left=(x<x0)?(x0-w):x0;
             var top=(y<y0)?(y0-h):y0;
-            id('blueOval').setAttribute('cx',(left+w/2));
-            id('blueOval').setAttribute('cy',(top+h/2));
-            id('blueOval').setAttribute('rx',w/2);
-            id('blueOval').setAttribute('ry',h/2);
+            getElement('blueOval').setAttribute('cx',(left+w/2));
+            getElement('blueOval').setAttribute('cy',(top+h/2));
+            getElement('blueOval').setAttribute('rx',w/2);
+            getElement('blueOval').setAttribute('ry',h/2);
             setSizes('box',null,w,h);
             break;
         case 'arc':
@@ -2332,12 +2443,12 @@ function drag(event) {
             arc.cx=x;
             arc.cy=y;
             arc.radius=Math.round(Math.sqrt(w*w+h*h));
-            id('blueLine').setAttribute('x2',arc.cx);
-            id('blueLine').setAttribute('y2',arc.cy);
-            id('blueOval').setAttribute('cx',x);
-            id('blueOval').setAttribute('cy',y);
-            id('blueOval').setAttribute('rx',arc.radius);
-            id('blueOval').setAttribute('ry',arc.radius);
+            getElement('blueLine').setAttribute('x2',arc.cx);
+            getElement('blueLine').setAttribute('y2',arc.cy);
+            getElement('blueOval').setAttribute('cx',x);
+            getElement('blueOval').setAttribute('cy',y);
+            getElement('blueOval').setAttribute('rx',arc.radius);
+            getElement('blueOval').setAttribute('ry',arc.radius);
             setSizes('polar',null,x0,y0,x,y);
             break;
         case 'arcEnd':
@@ -2369,18 +2480,18 @@ function drag(event) {
             x0=arc.cx;
             y0=arc.cy;
             setSizes('polar',null,x0,y0,x,y);
-            id('blueRadius').setAttribute('x2',arc.x2);
-            id('blueRadius').setAttribute('y2',arc.y2);
+            getElement('blueRadius').setAttribute('x2',arc.x2);
+            getElement('blueRadius').setAttribute('y2',arc.y2);
             break;
         case 'dimPlace':
             if(dim.dir=='v') {
-                id('blueDim').setAttribute('x1',x);
-                id('blueDim').setAttribute('x2',x);
+                getElement('blueDim').setAttribute('x1',x);
+                getElement('blueDim').setAttribute('x2',x);
                 dim.offset=Math.round(x-dim.x1);
             }
             else if(dim.dir=='h') {
-                id('blueDim').setAttribute('y1',y);
-                id('blueDim').setAttribute('y2',y);
+                getElement('blueDim').setAttribute('y1',y);
+                getElement('blueDim').setAttribute('y2',y);
                 dim.offset=Math.round(y-dim.y1);
             }
             else { // oblique dimension needs some calculation
@@ -2392,15 +2503,15 @@ function drag(event) {
                 o=Math.sqrt(dx*dx+dy*dy);
                 if((y<y0)||((y==y0)&&(x<x0))) o=o*-1;
                 dim.offset=Math.round(o);
-                id('blueDim').setAttribute('x1',dim.x1-o*Math.sin(a));
-                id('blueDim').setAttribute('y1',dim.y1+o*Math.cos(a));
-                id('blueDim').setAttribute('x2',dim.x2-o*Math.sin(a));
-                id('blueDim').setAttribute('y2',dim.y2+o*Math.cos(a));
+                getElement('blueDim').setAttribute('x1',dim.x1-o*Math.sin(a));
+                getElement('blueDim').setAttribute('y1',dim.y1+o*Math.cos(a));
+                getElement('blueDim').setAttribute('x2',dim.x2-o*Math.sin(a));
+                getElement('blueDim').setAttribute('y2',dim.y2+o*Math.cos(a));
             }
             break;
         case 'dimAdjust':
-            id('blueLine').setAttribute('y1',y);
-            id('blueLine').setAttribute('y2',y);
+            getElement('blueLine').setAttribute('y1',y);
+            getElement('blueLine').setAttribute('y2',y);
             break;
         case 'select':
         case 'pointEdit':
@@ -2408,10 +2519,10 @@ function drag(event) {
             var boxY=(y<y0)?y:y0;
             w=Math.abs(x-x0);
             h=Math.abs(y-y0);
-            id('selectionBox').setAttribute('x',boxX);
-            id('selectionBox').setAttribute('y',boxY);
-            id('selectionBox').setAttribute('width',w);
-            id('selectionBox').setAttribute('height',h);
+            getElement('selectionBox').setAttribute('x',boxX);
+            getElement('selectionBox').setAttribute('y',boxY);
+            getElement('selectionBox').setAttribute('width',w);
+            getElement('selectionBox').setAttribute('height',h);
             selectionBox.x=boxX;
             selectionBox.y=boxY;
             selectionBox.w=w;
@@ -2421,13 +2532,13 @@ function drag(event) {
     event.stopPropagation();
 };
 // DRAWING POINTER UP
-id('graphic').addEventListener('pointerup',function(e) {
+getElement('graphic').addEventListener('pointerup',function(e) {
     console.log('pointer up at '+x+','+y+' mode: '+mode);
-    id('graphic').removeEventListener('pointermove',drag);
+    getElement('graphic').removeEventListener('pointermove',drag);
     snap=snapCheck(); // NEEDED???
     console.log('snap - x:'+snap.x+' y:'+snap.y+' n:'+snap.n);
     if(mode.startsWith('movePoint')) { // move polyline/polygon point
-        id('handles').innerHTML='';
+        getElement('handles').innerHTML='';
         console.log('move point '+node+' on '+type(element));
         if(type(element)=='curve') {
             var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
@@ -2442,7 +2553,7 @@ id('graphic').addEventListener('pointerup',function(e) {
 			        console.log('graph '+graph.id+' updated');
 			        var d=curvePath(graph.points);
 			        console.log('new path: '+d);
-			        id(graph.id).setAttribute('d',curvePath(graph.points)); // redraw curve element path
+			        getElement(graph.id).setAttribute('d',curvePath(graph.points)); // redraw curve element path
 		        };
 	            request.onerror=function(event) {
 		            console.log("PUT ERROR updating graph "+graph.id);
@@ -2456,12 +2567,12 @@ id('graphic').addEventListener('pointerup',function(e) {
         	if((Math.abs(x-x0)<snapD)&&(Math.abs(y-y0)<snapD)) { // no drag - swop to mover
             console.log('TAP - add mover at node '+node); // node becomes new element 'anchor'
             var html="<use id='mover"+node+"' href='#mover' x='"+x+"' y='"+y+"'/>";
-            id('handles').innerHTML=html;
+            getElement('handles').innerHTML=html;
             mode='edit';
             return;
         }
         	updateGraph(elID,['points',element.getAttribute('points')]);
-        	id('bluePolyline').setAttribute('points','0,0');
+        	getElement('bluePolyline').setAttribute('points','0,0');
         	refreshNodes(element);
         }
         cancel();
@@ -2469,9 +2580,9 @@ id('graphic').addEventListener('pointerup',function(e) {
     else switch(mode) {
         case 'move':
             // console.log('MOVE element '+elID+' ends at '+x+','+y);
-            id('handles').innerHTML='';
-            id('blueBox').setAttribute('width',0);
-            id('blueBox').setAttribute('height',0);
+            getElement('handles').innerHTML='';
+            getElement('blueBox').setAttribute('width',0);
+            getElement('blueBox').setAttribute('height',0);
             if(selection.length>0) {
                 dx=x-x0;
                 dy=y-y0;
@@ -2510,16 +2621,16 @@ id('graphic').addEventListener('pointerup',function(e) {
             }
             console.log('move '+selection.length+' elements by '+dx+','+dy);
             if(anchor && (selection.length>1)) { // dispose of anchor after use
-                id('blue').removeChild(id('anchor'));
+                getElement('blue').removeChild(getElement('anchor'));
                 anchor=false;
             }
             while(selection.length>0) { // move all selected elements
                 elID=selection.pop();
                 console.log('move element '+elID);
-                element=id(elID);
+                element=getElement(elID);
                 move(element,dx,dy);
             }
-            id('selection').setAttribute('transform','translate(0,0)');
+            getElement('selection').setAttribute('transform','translate(0,0)');
             cancel();
             break;
         case 'boxSize':
@@ -2527,22 +2638,22 @@ id('graphic').addEventListener('pointerup',function(e) {
             if((Math.abs(dx)<snapD)&&(Math.abs(dy)<snapD)) { // node tapped - add mover
                 console.log('TAP - add mover at node '+node);
                 var html="<use id='mover"+node+"' href='#mover' x='"+x+"' y='"+y+"'/>";
-                id('handles').innerHTML=html;
+                getElement('handles').innerHTML=html;
                 mode='edit';
                 return;
             }
-            id('handles').innerHTML='';
-            x=id('blueBox').getAttribute('x');
-            y=id('blueBox').getAttribute('y');
-            w=id('blueBox').getAttribute('width');
-            h=id('blueBox').getAttribute('height');
+            getElement('handles').innerHTML='';
+            x=getElement('blueBox').getAttribute('x');
+            y=getElement('blueBox').getAttribute('y');
+            w=getElement('blueBox').getAttribute('width');
+            h=getElement('blueBox').getAttribute('height');
             updateGraph(elID,['x',x,'y',y,'width',w,'height',h]);
             element.setAttribute('x',x);
             element.setAttribute('y',y);
             element.setAttribute('width',w);
             element.setAttribute('height',h);
-            id('blueBox').setAttribute('width',0);
-            id('blueBox').setAttribute('height',0);
+            getElement('blueBox').setAttribute('width',0);
+            getElement('blueBox').setAttribute('height',0);
             refreshNodes(element);
             cancel();
             break;
@@ -2550,22 +2661,22 @@ id('graphic').addEventListener('pointerup',function(e) {
             if((Math.abs(dx)<snapD)&&(Math.abs(dy)<snapD)) { // node tapped - add mover
                 console.log('TAP - add mover at node '+node);
                 var html="<use id='mover"+node+"' href='#mover' x='"+x+"' y='"+y+"'/>";
-                id('handles').innerHTML=html;
+                getElement('handles').innerHTML=html;
                 mode='edit';
                 return;
             }
-            id('handles').innerHTML='';
-            x=Number(id('blueBox').getAttribute('x'));
-            y=Number(id('blueBox').getAttribute('y'));
-            w=Number(id('blueBox').getAttribute('width'));
-            h=Number(id('blueBox').getAttribute('height'));
+            getElement('handles').innerHTML='';
+            x=Number(getElement('blueBox').getAttribute('x'));
+            y=Number(getElement('blueBox').getAttribute('y'));
+            w=Number(getElement('blueBox').getAttribute('width'));
+            h=Number(getElement('blueBox').getAttribute('height'));
             updateGraph(elID,['cx',(x+w/2),'y',(y+h/2),'rx',w/2,'height',h/2]);
             element.setAttribute('cx',(x+w/2));
             element.setAttribute('cy',(y+h/2));
             element.setAttribute('rx',w/2);
             element.setAttribute('ry',h/2);
-            id('blueBox').setAttribute('width',0);
-            id('blueBox').setAttribute('height',0);
+            getElement('blueBox').setAttribute('width',0);
+            getElement('blueBox').setAttribute('height',0);
             refreshNodes(element);
             cancel();
             break;
@@ -2573,7 +2684,7 @@ id('graphic').addEventListener('pointerup',function(e) {
             if((Math.abs(dx)<snapD)&&(Math.abs(dy)<snapD)) { // node tapped - add mover
                 console.log('TAP - add mover at node '+node);
                 var html="<use id='mover"+node+"' href='#mover' x='"+x+"' y='"+y+"'/>";
-                id('handles').innerHTML=html;
+                getElement('handles').innerHTML=html;
                 mode='edit';
                 return;
             }
@@ -2613,9 +2724,9 @@ id('graphic').addEventListener('pointerup',function(e) {
             element.setAttribute('d',d);
             updateGraph(elID,['x1',arc.x1,'y1',arc.y1,'x2',arc.x2,'y2',arc.y2,'r',arc.r]);
             refreshNodes(element);
-            id('handles').innerHTML='';
-            id('blueOval').setAttribute('rx',0);
-            id('blueOval').setAttribute('ry',0);
+            getElement('handles').innerHTML='';
+            getElement('blueOval').setAttribute('rx',0);
+            getElement('blueOval').setAttribute('ry',0);
             cancel();
             break;
         case 'imageSize':
@@ -2623,22 +2734,22 @@ id('graphic').addEventListener('pointerup',function(e) {
             if((Math.abs(dx)<snapD)&&(Math.abs(dy)<snapD)) { // node tapped - add mover
                 console.log('TAP - add mover at node '+node);
                 var html="<use id='mover"+node+"' href='#mover' x='"+x+"' y='"+y+"'/>";
-                id('handles').innerHTML=html;
+                getElement('handles').innerHTML=html;
                 mode='edit';
                 return;
             }
-            id('handles').innerHTML='';
-            x=id('blueBox').getAttribute('x');
-            y=id('blueBox').getAttribute('y');
-            w=id('blueBox').getAttribute('width');
-            h=id('blueBox').getAttribute('height');
+            getElement('handles').innerHTML='';
+            x=getElement('blueBox').getAttribute('x');
+            y=getElement('blueBox').getAttribute('y');
+            w=getElement('blueBox').getAttribute('width');
+            h=getElement('blueBox').getAttribute('height');
             updateGraph(elID,['x',x,'y',y,'width',w,'height',h]);
             element.setAttribute('x',x);
             element.setAttribute('y',y);
             element.setAttribute('width',w);
             element.setAttribute('height',h);
-            id('blueBox').setAttribute('width',0);
-            id('blueBox').setAttribute('height',0);
+            getElement('blueBox').setAttribute('width',0);
+            getElement('blueBox').setAttribute('height',0);
             refreshNodes(element);
             cancel();
             break;
@@ -2653,8 +2764,8 @@ id('graphic').addEventListener('pointerup',function(e) {
             break;
         case 'curve':
             console.log('end curve');
-            var points=id('bluePolyline').points;
-            var point=id('svg').createSVGPoint(); // add end point
+            var points=getElement('bluePolyline').points;
+            var point=getElement('svg').createSVGPoint(); // add end point
                 point.x=x;
                 point.y=y;
                 points.appendItem(point);
@@ -2673,6 +2784,7 @@ id('graphic').addEventListener('pointerup',function(e) {
 	        graph.fill=fillColor;
 	        graph.opacity=opacity;
 	        graph.blur=blur;
+	        graph.layer=layer;
 	        addGraph(graph);
 	        blueline.setAttribute('points','0,0');
             cancel();
@@ -2691,7 +2803,7 @@ id('graphic').addEventListener('pointerup',function(e) {
             if((d<snapD)||(n>9)) { // click/tap to finish polyline - capped to 10 points
                 console.log('END LINE');
                 var points=blueline.points;
-                // var points=id('bluePolyline').points;
+                // var points=getElement('bluePolyline').points;
                 console.log('points: '+points);
                 // create polyline element
                 var graph={};
@@ -2710,7 +2822,7 @@ id('graphic').addEventListener('pointerup',function(e) {
 	            graph.fill='none';
 	            if(len>=scale) addGraph(graph); // avoid zero-size lines
 	            blueline.setAttribute('points','0,0');
-	            // id('bluePolyline').setAttribute('points','0,0');
+	            // getElement('bluePolyline').setAttribute('points','0,0');
 	            cancel();
             }
             else { // check if close to start point
@@ -2722,7 +2834,7 @@ id('graphic').addEventListener('pointerup',function(e) {
                 if(d<snapD) { // close to start - create shape
                     console.log('CLOSE SHAPE');
                     var points=blueline.points;
-                    // var points=id('bluePolyline').points;
+                    // var points=getElement('bluePolyline').points;
                     console.log('points: '+points);
                     var graph={}; // create polygon element
                     graph.type='shape';
@@ -2738,9 +2850,10 @@ id('graphic').addEventListener('pointerup',function(e) {
 	                graph.lineStyle=lineType;
 	                graph.fillType=fillType;
 	                graph.fill=fillColor;
+	                graph.layer=layer;
 	                if(len>=scale) addGraph(graph); // avoid zero-size shapes
 	                blueline.setAttribute('points','0,0');
-	                // id('bluePolyline').setAttribute('points','0,0');
+	                // getElement('bluePolyline').setAttribute('points','0,0');
 	                cancel();
                 }
             }
@@ -2760,7 +2873,7 @@ id('graphic').addEventListener('pointerup',function(e) {
             var d=Math.sqrt(dx*dx+dy*dy);
             if((d>snapD)&&(n<11)) break; // check if close to start point - if not, continue but cap at 10 sides
             console.log('end polyline & create shape');
-            var points=id('bluePolyline').points;
+            var points=getElement('bluePolyline').points;
             console.log('points: '+points);
             var graph={}; // create polygon element
             graph.type='shape';
@@ -2777,16 +2890,17 @@ id('graphic').addEventListener('pointerup',function(e) {
 	        graph.lineStyle=lineType;
 	        graph.fillType=fillType;
 	        graph.fill=fillColor;
+	        graph.layer=layer;
 	        if(len>=scale) addGraph(graph); // avoid zero-size shapes
-	        id('bluePolyline').setAttribute('points','0,0');
+	        getElement('bluePolyline').setAttribute('points','0,0');
 	        cancel();
             break;
         case 'box':
             console.log('finish box');
             var graph={}
 	        graph.type='box';
-	        graph.x=parseInt(id('blueBox').getAttribute('x'));
-	        graph.y=parseInt(id('blueBox').getAttribute('y'));
+	        graph.x=parseInt(getElement('blueBox').getAttribute('x'));
+	        graph.y=parseInt(getElement('blueBox').getAttribute('y'));
 	        graph.width=w;
 	        graph.height=h;
 	        graph.radius=rad;
@@ -2799,16 +2913,17 @@ id('graphic').addEventListener('pointerup',function(e) {
 	        graph.fill=fillColor;
 	        graph.opacity=opacity;
 	        graph.blur=blur;
+	        graph.layer=layer;
 	        if((graph.width>=scale)&&(graph.width>=scale)) addGraph(graph); // avoid zero-size boxes
-            id('blueBox').setAttribute('width',0);
-            id('blueBox').setAttribute('height',0);
+            getElement('blueBox').setAttribute('width',0);
+            getElement('blueBox').setAttribute('height',0);
             cancel();
             break;
         case 'oval':
             var graph={};
 	        graph.type='oval';
-	        graph.cx=parseInt(id('blueOval').getAttribute('cx'));
-	        graph.cy=parseInt(id('blueOval').getAttribute('cy'));
+	        graph.cx=parseInt(getElement('blueOval').getAttribute('cx'));
+	        graph.cy=parseInt(getElement('blueOval').getAttribute('cy'));
 	        graph.rx=w/2;
 	        graph.ry=h/2;
 	        graph.spin=0;
@@ -2818,9 +2933,10 @@ id('graphic').addEventListener('pointerup',function(e) {
 	        graph.fillType=fillType;
 	        graph.fill=fillColor;
 	        graph.opacity=opacity;
+	        graph.layer=layer;
 	        if((graph.rx>=scale)&&(graph.ry>=scale)) addGraph(graph); // avoid zero-size ovals
-		    id('blueOval').setAttribute('rx',0);
-            id('blueOval').setAttribute('ry',0);
+		    getElement('blueOval').setAttribute('rx',0);
+            getElement('blueOval').setAttribute('ry',0);
             cancel();
             break;
         case 'arc':
@@ -2839,10 +2955,10 @@ id('graphic').addEventListener('pointerup',function(e) {
             arc.major=0; // always starts with minor arc
             x0=arc.x1;
             y0=arc.y1;
-            id('blueRadius').setAttribute('x1',arc.cx); // draw blue arc radius with arrows
-            id('blueRadius').setAttribute('y1',arc.cy); 
-            id('blueRadius').setAttribute('x2',arc.x1); 
-            id('blueRadius').setAttribute('y2',arc.y1);
+            getElement('blueRadius').setAttribute('x1',arc.cx); // draw blue arc radius with arrows
+            getElement('blueRadius').setAttribute('y1',arc.cy); 
+            getElement('blueRadius').setAttribute('x2',arc.x1); 
+            getElement('blueRadius').setAttribute('y2',arc.y1);
             mode='arcEnd';
             break;
         case 'arcEnd':
@@ -2869,17 +2985,18 @@ id('graphic').addEventListener('pointerup',function(e) {
 	        graph.lineW=pen*scale;
 	        graph.fillType='none'; // arcs default to no fill
 	        graph.opacity=0;
+	        graph.layer=layer;
 	        if((arc.r>=scale)&&(a!=0)) addGraph(graph); // avoid zero-size arcs
-            id('blueOval').setAttribute('rx',0);
-            id('blueOval').setAttribute('ry',0);
-            id('blueLine').setAttribute('x1',0);
-            id('blueLine').setAttribute('y1',0);
-            id('blueLine').setAttribute('x2',0);
-            id('blueLine').setAttribute('y2',0);
-            id('blueRadius').setAttribute('x1',0);
-            id('blueRadius').setAttribute('y1',0);
-            id('blueRadius').setAttribute('x2',0);
-            id('blueRadius').setAttribute('y2',0);
+            getElement('blueOval').setAttribute('rx',0);
+            getElement('blueOval').setAttribute('ry',0);
+            getElement('blueLine').setAttribute('x1',0);
+            getElement('blueLine').setAttribute('y1',0);
+            getElement('blueLine').setAttribute('x2',0);
+            getElement('blueLine').setAttribute('y2',0);
+            getElement('blueRadius').setAttribute('x1',0);
+            getElement('blueRadius').setAttribute('y1',0);
+            getElement('blueRadius').setAttribute('x2',0);
+            getElement('blueRadius').setAttribute('y2',0);
             cancel();
             break;
         case 'dimStart':
@@ -2906,11 +3023,11 @@ id('graphic').addEventListener('pointerup',function(e) {
                 if(dim.x1==dim.x2) dim.dir='v'; // vertical
                 else if(dim.y1==dim.y2) dim.dir='h'; // horizontal
                 if(dim.dir) {
-                    id('blueDim').setAttribute('x1',dim.x1);
-                    id('blueDim').setAttribute('y1',dim.y1);
-                    id('blueDim').setAttribute('x2',dim.x2);
-                    id('blueDim').setAttribute('y2',dim.y2);
-                    id('guides').style.display='block';
+                    getElement('blueDim').setAttribute('x1',dim.x1);
+                    getElement('blueDim').setAttribute('y1',dim.y1);
+                    getElement('blueDim').setAttribute('x2',dim.x2);
+                    getElement('blueDim').setAttribute('y2',dim.y2);
+                    getElement('guides').style.display='block';
                     hint('DIMENSION: drag to position');
                     mode='dimPlace';
                 }
@@ -2944,18 +3061,19 @@ id('graphic').addEventListener('pointerup',function(e) {
             }
             graph.dir=dim.dir; // direction: h/v/o (horizontal/vertical/oblique)
             graph.offset=dim.offset;
-            id('blueDim').setAttribute('x1',0);
-            id('blueDim').setAttribute('y1',0);
-            id('blueDim').setAttribute('x2',0);
-            id('blueDim').setAttribute('y2',0);
+            graph.layer=layer;
+            getElement('blueDim').setAttribute('x1',0);
+            getElement('blueDim').setAttribute('y1',0);
+            getElement('blueDim').setAttribute('x2',0);
+            getElement('blueDim').setAttribute('y2',0);
             addGraph(graph);
             cancel();
             break;
         case 'dimAdjust':
-            var x1=parseInt(id('blueLine').getAttribute('x1'));
-            var y1=parseInt(id('blueLine').getAttribute('y1'));
-            var x2=parseInt(id('blueLine').getAttribute('x2'));
-            var y2=parseInt(id('blueLine').getAttribute('y2'));
+            var x1=parseInt(getElement('blueLine').getAttribute('x1'));
+            var y1=parseInt(getElement('blueLine').getAttribute('y1'));
+            var x2=parseInt(getElement('blueLine').getAttribute('x2'));
+            var y2=parseInt(getElement('blueLine').getAttribute('y2'));
             var line=element.firstChild;
             line.setAttribute('x1',x1);
             line.setAttribute('y1',y1);
@@ -2964,11 +3082,11 @@ id('graphic').addEventListener('pointerup',function(e) {
             var text=element.childNodes[1];
             text.setAttribute('x',(x1+x2)/2);
             text.setAttribute('y',(y1-1));
-            id('blueLine').setAttribute('x1',0);
-            id('blueLine').setAttribute('y1',0);
-            id('blueLine').setAttribute('x2',0);
-            id('blueLine').setAttribute('y2',0);
-            id('blueLine').setAttribute('transform','rotate(0)');
+            getElement('blueLine').setAttribute('x1',0);
+            getElement('blueLine').setAttribute('y1',0);
+            getElement('blueLine').setAttribute('x2',0);
+            getElement('blueLine').setAttribute('y2',0);
+            getElement('blueLine').setAttribute('transform','rotate(0)');
             dy=y1-y0;
             var request=db.transaction('graphs').objectStore('graphs').get(Number(elID));
             request.onsuccess=function(event) {
@@ -2993,7 +3111,7 @@ id('graphic').addEventListener('pointerup',function(e) {
                 console.log('SNAP - place anchor: '+snap);
                 var html="<use id='anchor' href='#mover' x='"+x+"' y='"+y+"'/>";
                 // var html="<circle id='anchor' cx='"+x+"' cy='"+y+"' r='"+(2*scale)+"' stroke='blue' stroke-width='"+(0.25*scale)+"' fill='gray' fill-opacity='0.5'/>";
-                id('blue').innerHTML+=html; // anchor is pseudo-element - put in <blue> layer
+                getElement('blue').innerHTML+=html; // anchor is pseudo-element - put in <blue> layer
                 anchor=true;
                 mode='select';
                 console.log('anchor placed');
@@ -3021,21 +3139,21 @@ id('graphic').addEventListener('pointerup',function(e) {
                     selectedPoints.push(i);
                 }
                 console.log(selectedPoints.length+' points selected');
-                if(selectedPoints.length>0) id('handles').innerHTML=''; // remove handles
+                if(selectedPoints.length>0) getElement('handles').innerHTML=''; // remove handles
                 break;
             }
         case 'select':
-            id('blueBox').setAttribute('width',0);
-            id('blueBox').setAttribute('height',0);
-            id('guides').style.display='none';
+            getElement('blueBox').setAttribute('width',0);
+            getElement('blueBox').setAttribute('height',0);
+            getElement('guides').style.display='none';
             console.log('box size: '+selectionBox.w+'x'+selectionBox.h);
             if((selectionBox.w>20)&&(selectionBox.h>20)) { // significant selection box size
                 console.log('GROUP SELECTION - box: '+selectionBox.w+'x'+selectionBox.h+' at '+selectionBox.x+','+selectionBox.y);
-                var items=id('dwg').childNodes;
+                var items=getElement('dwg').childNodes;
                 console.log(items.length+' elements in dwg');
                 for(var i=0;i<items.length;i++) { // collect elements entirely within selectionBox
                     console.log('item '+i+': '+items[i].id);
-                    var el=id(items[i].id);
+                    var el=getElement(items[i].id);
                     if((type(el)=='dim')||!el) continue; // don't include dimensions or 'null' nodes
                     var box=getBounds(items[i]);
                     console.log('bounds for '+items[i].id+": "+box.x+','+box.y);
@@ -3044,32 +3162,34 @@ id('graphic').addEventListener('pointerup',function(e) {
                     if(box.y<selectionBox.y) continue;
                     if((box.x+box.width)>(selectionBox.x+selectionBox.w)) continue;
                     if((box.y+box.height)>(selectionBox.y+selectionBox.h)) continue;
-                    selection.push(items[i].id); // add to selection if passes tests
-                    console.log('select '+items[i].id);
-                    var html="<rect x='"+box.x+"' y='"+box.y+"' width='"+box.width+"' height='"+box.height+"' ";
-                    html+="stroke='none' fill='blue' fill-opacity='0.25' el='"+items[i].id+"'/>";
-                    id('selection').innerHTML+=html;
+					// CAN ONLY SELECT BACKGROUND ELEMENTS IF ON LAYER 0
+                    if((items[i].getAttribute('layer')>0)||(layer<1)) {
+                    	selection.push(items[i].id); // add to selection if passes tests
+                    	console.log('select '+items[i].id);
+                    	var html="<rect x='"+box.x+"' y='"+box.y+"' width='"+box.width+"' height='"+box.height+"' ";
+                    	html+="stroke='none' fill='blue' fill-opacity='0.25' el='"+items[i].id+"'/>";
+                    	getElement('selection').innerHTML+=html;
+                    }
                 }
                 if(selection.length>0) { // highlight selected elements
                     mode='edit';
                     showEditTools(true);
                     console.log(selection.length+' elements selected');
-                    // NEW CODE...
                     if(selection.length<2) {
                         console.log('only one selection');
-                        id('selection').innerHTML=''; // no blue box
-                        element=id(selection[0]);
+                        getElement('selection').innerHTML=''; // no blue box
+                        element=getElement(selection[0]);
                         // elID=selection[0];
-                        // element=id(elID);
+                        // element=getElement(elID);
                         select(element); // add handles etc
                         // setStyle(element);
                     }
                     /* OLD CODE
                     if(selection.length<2) {
                         console.log('only one selection');
-                        id('selection').innerHTML=''; // no blue box
+                        getElement('selection').innerHTML=''; // no blue box
                         elID=selection[0];
-                        element=id(elID);
+                        element=getElement(elID);
                         select(element); // add handles etc
                         // setStyle(element);
                     }
@@ -3103,14 +3223,15 @@ id('graphic').addEventListener('pointerup',function(e) {
             }
             console.log('parent is '+el.parentNode.id);
             if(el.parentNode.id=='dwg') hit=el.id;
-            if(hit) console.log('HIT: '+hit+' type: '+type(el));
+            if(hit) console.log('HIT: '+hit+' type: '+type(el)+' layer '+el.getAttribute('layer'));
             else console.log('MISS');
             console.log('selected: '+selection.length);
             if(hit) {
-                if(selection.indexOf(hit)<0) { // add to selection
+            	// CAN ONLY SELECT BACKGROUND ELEMENTS IF ON LAYER 0 AND NOT ALREADY SELECTED
+            	if(((el.getAttribute('layer')>0)||(layer<1))&&(selection.indexOf(hit)<0)) {
                     selection.push(hit);
                     if(selection.length<2) { // only item selected
-                        element=id(hit);
+                        element=getElement(hit);
                         select(element,false);
                     }
                     else { // multiple selection
@@ -3118,8 +3239,8 @@ id('graphic').addEventListener('pointerup',function(e) {
                         // NEW CODE...
                         if(selection.length<3) {
                             console.log('SECOND SELECTED ITEM');
-                            id('handles').innerHTML='';
-                            select(id(selection[0]),true); // highlight first selected item
+                            getElement('handles').innerHTML='';
+                            select(getElement(selection[0]),true); // highlight first selected item
                         }
                         select(el,true);
                     }
@@ -3136,8 +3257,8 @@ id('graphic').addEventListener('pointerup',function(e) {
     event.stopPropagation();
 });
 // ADJUST ELEMENT SIZES
-id('first').addEventListener('change',function() {
-    var val=parseInt(id('first').value);
+getElement('first').addEventListener('change',function() {
+    var val=parseInt(getElement('first').value);
     re('member');
     switch(type(element)) {
         case 'line':
@@ -3178,7 +3299,7 @@ id('first').addEventListener('change',function() {
 	            }
                 updateGraph(elID,['points',pts]); // UPDATE DB
                 refreshNodes(element);
-                id('handles').innerHTML='';
+                getElement('handles').innerHTML='';
                 mode='select';
             }
             break;
@@ -3201,7 +3322,7 @@ id('first').addEventListener('change',function() {
             element.setAttribute('width',val);
             updateGraph(elID,['x',elX,'width',val]);
             refreshNodes(element);
-            id('handles').innerHTML='';
+            getElement('handles').innerHTML='';
             mode='select';
             break;
         case 'oval':
@@ -3209,9 +3330,9 @@ id('first').addEventListener('change',function() {
             updateGraph(elID,['rx',val/2]);
             var elX=parseInt(element.getAttribute('cx'));
             refreshNodes(element);
-            id('handles').innerHTML='';
+            getElement('handles').innerHTML='';
             mode='select';
-            // id('handleSize').setAttribute('x',(elX+val/2-handleR));
+            // getElement('handleSize').setAttribute('x',(elX+val/2-handleR));
             break;
         case 'arc':
             console.log('adjust arc radius to '+val);
@@ -3237,14 +3358,14 @@ id('first').addEventListener('change',function() {
             var d='M'+arc.cx+','+arc.cy+' M'+arc.x1+','+arc.y1+' A'+arc.r+','+arc.r+' 0 '+arc.major+','+arc.sweep+' '+arc.x2+','+arc.y2;
             element.setAttribute('d',d);
             updateGraph(elID,['x1',arc.x1,'y1',arc.y1,'x2',arc.x2,'y2',arc.y2,'r',arc.r]);
-            id('handles').innerHTML='';
+            getElement('handles').innerHTML='';
             mode='select';
             refreshNodes(element);
             break;
     }
 });
-id('second').addEventListener('change',function() {
-    var val=parseInt(id('second').value);
+getElement('second').addEventListener('change',function() {
+    var val=parseInt(getElement('second').value);
     re('member');
     switch(type(element)) {
         case 'line':
@@ -3302,7 +3423,7 @@ id('second').addEventListener('change',function() {
 	            }
                 updateGraph(elID,['points',pts]);
                 refreshNodes(element);
-                id('handles').innerHTML='';
+                getElement('handles').innerHTML='';
                 mode='select';
             }
             break;
@@ -3324,7 +3445,7 @@ id('second').addEventListener('change',function() {
             element.setAttribute('height',val);
             updateGraph(elID,['y',elY,'height',val]);
             refreshNodes(element);
-            id('handles').innerHTML='';
+            getElement('handles').innerHTML='';
             mode='select';
             break;
         case 'oval':
@@ -3332,9 +3453,9 @@ id('second').addEventListener('change',function() {
             updateGraph(elID,['ry',val/2]);
             var elY=parseInt(element.getAttribute('cy'));
             refreshNodes(element);
-            id('handles').innerHTML='';
+            getElement('handles').innerHTML='';
             mode='select';
-            // id('handleSize').setAttribute('y',(elY+val/2-handleR));
+            // getElement('handleSize').setAttribute('y',(elY+val/2-handleR));
             break;
         case 'arc':
             console.log('change arc angle to '+val);
@@ -3352,70 +3473,109 @@ id('second').addEventListener('change',function() {
             element.setAttribute('d',d);
             updateGraph(elID,['d',d,'x2',x,'y2',y,'sweep',arc.sweep]);
             refreshNodes(element);
-            id('handles').innerHTML='';
+            getElement('handles').innerHTML='';
             mode='select';
     }
 });
-id('spin').addEventListener('change',function() {
+getElement('spin').addEventListener('change',function() {
     re('member');
-    var val=parseInt(id('spin').value);
+    var val=parseInt(getElement('spin').value);
     console.log('set spin to '+val+' degrees');
     element.setAttribute('spin',val);
     updateGraph(elID,['spin',val]);
     setTransform(element);
     refreshNodes(element);
 });
-id('elementLayer').addEventListener('click',function() {
+getElement('elementLayer').addEventListener('click',function() {
 	console.log('display layer choice');
-	for(var i=0;i<10;i++) {id('choice'+i).addEventListener('click',setLayer);}
-	id('choice'+layer).checked=true;
-	id('layerChooser').style.display='block';
+	for(var i=0;i<10;i++) {getElement('choice'+i).addEventListener('click',setLayer);}
+	getElement('choice'+layer).checked=true;
+	getElement('layerChooser').style.display='block';
 });
-id('undoButton').addEventListener('click',function() {
+getElement('undoButton').addEventListener('click',function() {
     re('call'); // recall & reinstate previous positions/points/sizes/spins/flips
 });
 // UTILITY FUNCTIONS
-function addGraph(el) {
-    console.log('add '+el.type+' element - spin: '+el.spin+' to layer '+layer);
-    console.log('fill: '+el.fillType+', '+el.fill);
-    el.layer=layer;
-    var request=db.transaction('graphs','readwrite').objectStore('graphs').add(el);
+function addGraph(graph) {
+    console.log('add '+graph.type+' element - spin: '+graph.spin+' to layer '+graph.layer);
+    console.log('fill: '+graph.fillType+', '+graph.fill);
+    var request=db.transaction('graphs','readwrite').objectStore('graphs').add(graph);
     request.onsuccess=function(event) {
         console.log('result: '+event.target.result);
-        el.id=event.target.result;
-        console.log('graph added - id: '+el.id+' - draw');
-        el=makeElement(el);
-        return el;
+        graph.id=event.target.result;
+        console.log('graph added - id: '+graph.id+' - draw');
+        graph=makeElement(graph);
+        return graph;
     }
     request.onerror=function(event) {
         console.log('add copy failed');
     }
 }
+function addSet(content) {
+	console.log('save set '+content);
+	json=JSON.parse(content);
+	var name=json.name; // one set per file
+	console.log("add "+name);
+	var request=db.transaction('sets','readwrite').objectStore('sets').add(json);
+	request.onsuccess=function(e) {
+		var n=request.result;
+		console.log("set added to database: "+n);
+		listSets();
+	};
+	request.onerror=function(e) {console.log("error adding sets");};
+}
+function addImage(file) {
+	console.log('load file '+file.name+' type '+file.type+' '+file.size+' bytes');
+    var loader=new FileReader();
+    loader.addEventListener('load',function(evt) {
+        var data=evt.target.result;
+        console.log('data: '+data.length+' bytes');
+        var transaction=db.transaction('images','readwrite');
+        var imageStore=transaction.objectStore('images');
+        var imageObject={};
+        imageObject.name=file.name;
+        imageObject.data=data;
+        var request=imageStore.add(imageObject);
+        request.onsuccess=function(e){
+        	console.log('image '+file.name+' saved to database');
+        	listImages();
+        }
+        request.onerror=function(e){
+        	console.log('save image failed');
+        }
+    });
+    loader.addEventListener('error',function(event) {
+    	console.log('load failed - '+event);
+    });
+   	loader.readAsDataURL(file);
+    showDialog('loadDialog',false);
+}
 function cancel() { // cancel current operation and return to select mode
     mode='select';
-    id('tools').style.display='block';
+    getElement('tools').style.display='block';
     element=elID=null;
     selection=[];
     selectedPoints=[];
     selectionBox.w=selectionBox.h=0;
-    id('selection').innerHTML='';
-    id('handles').innerHTML=''; //remove element handles...
-    id('selectionBox').setAttribute('width',0);
-    id('selectionBox').setAttribute('height',0);
-    id('blueBox').setAttribute('width',0);
-    id('blueBox').setAttribute('height',0);
-    id('blueOval').setAttribute('rx',0);
-    id('blueOval').setAttribute('ry',0);
-    id('bluePolyline').setAttribute('points','0,0');
-    id('guides').style.display='none';
-    id('datumSet').style.display='none';
+    getElement('selection').innerHTML='';
+    getElement('handles').innerHTML=''; //remove element handles...
+    getElement('selectionBox').setAttribute('width',0);
+    getElement('selectionBox').setAttribute('height',0);
+    getElement('blueBox').setAttribute('width',0);
+    getElement('blueBox').setAttribute('height',0);
+    getElement('blueOval').setAttribute('rx',0);
+    getElement('blueOval').setAttribute('ry',0);
+    getElement('bluePolyline').setAttribute('points','0,0');
+    getElement('guides').style.display='none';
+    getElement('datumSet').style.display='none';
     if(anchor) {
-        id('anchor').remove();
+        getElement('anchor').remove();
         anchor=false;
     }
     showInfo(false);
     showEditTools(false);
-    id('textDialog').style.display='none';
+    getElement('textDialog').style.display='none';
+    getElement('layerChooser').style.display='none';
     setStyle(); // set styles to defaults
 }
 function checkDims(el) {
@@ -3509,6 +3669,9 @@ function getBounds(el) {
     var b=el.getBBox();
     return b;
 }
+function getElement(el) {
+	return document.getElementById(el);
+}
 function getLineStyle(el) {
     var lw=parseInt(el.getAttribute('stroke-width'));
     var dash=parseInt(el.getAttribute('stroke-dasharray'));
@@ -3518,15 +3681,12 @@ function getLineStyle(el) {
 }
 function hint(text) {
     console.log('HINT '+text);
-    id('hint').innerHTML=text; //display text for 3 secs
-    var h=(id('info').style.height<1);
-    id('info').style.height=(h+24)+'px';
-    setTimeout(function(){id('info').style.height=h+'px'},10000);
-    // id('hint').style.display='block';
-    // setTimeout(function(){id('hint').style.display='none'},10000);
-}
-function id(el) {
-	return document.getElementById(el);
+    getElement('hint').innerHTML=text; //display text for 3 secs
+    var h=(getElement('info').style.height<1);
+    getElement('info').style.height=(h+24)+'px';
+    setTimeout(function(){getElement('info').style.height=h+'px'},10000);
+    // getElement('hint').style.display='block';
+    // setTimeout(function(){getElement('hint').style.display='none'},10000);
 }
 function initialise() {
     console.log('set up size '+size+' '+aspect+' 1:'+scale+' scale '+aspect+' drawing');
@@ -3539,7 +3699,7 @@ function initialise() {
     dwg.w=widths[index];
     dwg.h=heights[index];
     console.log('drawing size '+dwg.w+'x'+dwg.h+'(index: '+index+')');
-    var gridSizes=id('gridSize').options;
+    var gridSizes=getElement('gridSize').options;
     console.log('set '+gridSizes.length+' grid size options for scale '+scale);
     gridSizes[0].disabled=(scale>2);
     gridSizes[1].disabled=(scale>5);
@@ -3550,15 +3710,15 @@ function initialise() {
     var blues=document.getElementsByClassName('blue');
     console.log(blues.length+' elements in blue class');
     for(var i=0;i<blues.length;i++) blues[i].style.strokeWidth=0.25*scale;
-    id('moveCircle').setAttribute('r',handleR);
-    id('moveCircle').style.strokeWidth=scale;
-    id('sizeDisc').setAttribute('r',handleR);
-    id('selectionBox').setAttribute('stroke-dasharray',(scale+' '+scale+' '));
+    getElement('moveCircle').setAttribute('r',handleR);
+    getElement('moveCircle').style.strokeWidth=scale;
+    getElement('sizeDisc').setAttribute('r',handleR);
+    getElement('selectionBox').setAttribute('stroke-dasharray',(scale+' '+scale+' '));
     console.log('set drawings size to '+dwg.w+'x'+dwg.h);
-    //id('paper').setAttribute('width',(dwg.w+'mm'));
-    //id('paper').setAttribute('height',(dwg.h+'mm'));
-    id('svg').setAttribute('width',(dwg.w+'mm'));
-    id('svg').setAttribute('height',(dwg.h+'mm'));
+    //getElement('paper').setAttribute('width',(dwg.w+'mm'));
+    //getElement('paper').setAttribute('height',(dwg.h+'mm'));
+    getElement('svg').setAttribute('width',(dwg.w+'mm'));
+    getElement('svg').setAttribute('height',(dwg.h+'mm'));
     w=dwg.w*scale; // viewBox is to scale
     h=dwg.h*scale;
     if(((dwg.w/scaleF)>scr.w)||((dwg.h/scaleF)>scr.h)) {
@@ -3568,39 +3728,88 @@ function initialise() {
         // h/=2;
     }
     console.log('viewbox: '+w+'x'+h);
-    //id('paper').setAttribute('viewBox',"0 0 "+w+" "+h);
-    id('paperSheet').setAttribute('width',w);
-    id('paperSheet').setAttribute('height',h);
+    //getElement('paper').setAttribute('viewBox',"0 0 "+w+" "+h);
+    getElement('paperSheet').setAttribute('width',w);
+    getElement('paperSheet').setAttribute('height',h);
     /*
-    id('background').setAttribute('width',w);
-    id('background').setAttribute('height',h);
+    getElement('background').setAttribute('width',w);
+    getElement('background').setAttribute('height',h);
     */
-    id('svg').setAttribute('viewBox',"0 0 "+w+" "+h);
+    getElement('svg').setAttribute('viewBox',"0 0 "+w+" "+h);
     console.log('scale is '+scale);
-    id('datum').setAttribute('transform','scale('+scale+')');
+    getElement('datum').setAttribute('transform','scale('+scale+')');
     html="<rect x='0' y='0' width='"+w+"' height='"+h+"'/>"; // clip to drawing edges
-    id('clipper').innerHTML=html;
+    getElement('clipper').innerHTML=html;
     // console.log('drawing scale size: '+w+'x'+h+'mm; scaleF: '+scaleF+'; snapD: '+snapD);
     for(var i=0;i<10;i++) nodes.push({'x':0,'y':0,'n':i}); // 10 nodes for blueline
     // for(var i=0;i<10;i++) console.log('node '+i+': '+nodes[i].n+' at '+nodes[i].x+','+nodes[i].y);
-    id('countH').value=id('countV').value=1;
-    // setLayers();
+    getElement('countH').value=getElement('countV').value=1;
     cancel(); // set select mode
-    // report('screen size: '+scr.w+'x'+scr.h+' aspect: '+aspect+' drawing size: '+dwg.w+'x'+dwg.h+' scale: '+scale+' scaleF: '+scaleF);
 }
-function load() {
-	var transaction=db.transaction('graphs','readwrite');
-    var graphs=transaction.objectStore('graphs');
-    var request=graphs.openCursor();
-    // var request=db.transaction('graphs').objectStore('graphs').openCursor();
+function listImages() {
+	getElement('imageList').innerHTML="<option onclick='hint(\'select an image\');' value=null>select an image</option>"; // rebuild imageList
+	var request=db.transaction('images').objectStore('images').openCursor();
     request.onsuccess = function(event) {  
 	    var cursor=event.target.result;  
         if(cursor) {
+            var image=cursor.value;
+            var name=image.name;
+            console.log('add image '+name);
+            var html="<g id='"+name+"'>"+image+"</g>";
+            html="<option value="+name+">"+name+"</option>";
+            getElement('imageList').innerHTML+=html;
+            console.log('image listed');
+	    	cursor.continue();  
+        }
+	    else {
+		    console.log("No more images");
+	    }
+    };
+}
+function listSets() {
+	getElement('setList').innerHTML="<option onclick='hint(\'select a set\');' value=null>select a set</option>"; // rebuild setLists
+    getElement('setChooser').innerHTML=''; // clear setChooser list
+    var request=db.transaction('sets').objectStore('sets').openCursor();
+    request.onsuccess = function(event) {  
+	    var cursor=event.target.result;  
+        if(cursor) {
+            var set=cursor.value;
+            // GET SET NAME AND ADD TO setList AND setChooser AS AN OPTION
+            var name=set.name;
+            console.log('add set '+name);
+            var html="<g id='"+name+"'>"+set.svg+"</g>"; // TRY WITHOUT ax,ay
+            getElement('sets').innerHTML+=html; // copy set svg into <defs>...
+            html="<option value="+name+">"+name+"</option>";
+            getElement('setList').innerHTML+=html; //...and set name into setList...
+            html="<li style='float:right'>"+name+"&nbsp;<input type='checkbox' id='$"+name+"' class='setChoice'></li><br>";
+            getElement('setChooser').innerHTML+=html; // ...and setChooser
+            console.log('set added');
+	    	cursor.continue();  
+        }
+	    else {
+		    console.log("No more sets");
+	    }
+    };
+}
+function load() {
+	var transaction=db.transaction('graphs','readonly'); // WAS readwrite
+	var graphs=transaction.objectStore('graphs');
+    if(stackLayers) {
+    	var index=graphs.index('layerIndex');
+    	var request=index.openCursor(null,'next'); // sort in ascending order on .layer
+    }
+    else {
+    	var request=graphs.openCursor();
+    }
+    request.onsuccess=function(event) {  
+	    var cursor=event.target.result;  
+        if(cursor) {
             var graph=cursor.value;
-            console.log('load '+graph.type+' id: '+graph.id);
+            console.log('load '+graph.type+' id: '+graph.id+' layer: '+graph.layer);
+            if(graph.type=='image') console.log('image data: '+graph.data);
             var el=makeElement(graph);
-            if(graph.stroke=='blue') id('ref').appendChild(el); // blue items go into <ref> ***** NO - LAYER 0 *******
-            else id('dwg').appendChild(el);
+            if(graph.stroke=='blue') getElement('ref').appendChild(el); // blue items go into <ref> ***** NO - LAYER 0 *******
+            else getElement('dwg').appendChild(el);
 	    	cursor.continue();  
         }
 	    else {
@@ -3608,31 +3817,13 @@ function load() {
 	    }
     };
     console.log('all graphs loaded');
-    id('setList').innerHTML="<option onclick='hint(\'select a set\');' value=null>select a set</option>"; // rebuild setList
-    var request=db.transaction('sets').objectStore('sets').openCursor();
-    request.onsuccess = function(event) {  
-	    var cursor=event.target.result;  
-        if(cursor) {
-            var set=cursor.value;
-            // GET SET NAME AND ADD TO setList AS AN OPTION
-            var name=set.name;
-            console.log('add set '+name);
-            var html="<g id='"+name+"'>"+set.svg+"</g>"; // TRY WITHOUT ax,ay
-            id('sets').innerHTML+=html; // copy set svg into <defs>...
-            html="<option value="+name+">"+name+"</option>";
-            id('setList').innerHTML+=html; //...and set name into setList
-            console.log('added');
-	    	cursor.continue();  
-        }
-	    else {
-		    console.log("No more sets");
-	    }
-    };
+    listSets();
+    listImages();
     transaction.oncomplete=function() {setLayerVisibility()};
 }
 function makeElement(g) {
-    console.log('make '+g.type+' element '+g.id);
-    var ns=id('svg').namespaceURI;
+    console.log('make '+g.type+' element '+g.id+' layer '+g.layer);
+    var ns=getElement('svg').namespaceURI;
     switch(g.type) {
     	case 'curve':
             var el=document.createElementNS(ns,'path');
@@ -3774,6 +3965,7 @@ function makeElement(g) {
             el.setAttribute('stroke','none');
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
+            el.setAttribute('text',g.text);
             var t=document.createTextNode(g.text);
 			el.appendChild(t).then
 				el.innerHTML=textFormat(g.text,g.x);
@@ -3853,10 +4045,13 @@ function makeElement(g) {
             if((g.spin!=0)||(g.flip!=0)) setTransform(el);
             break;
         case 'image':
-        	console.log('add image element - href: '+g.href);
+        	console.log('add image element '+g.name);
+        	console.log('data: '+g.data);
+        	// var url=URL.createObjectURL(g.data);
+        	// console.log('image URL: '+url);
         	var el=document.createElementNS(ns,'image');
             el.setAttribute('id',g.id);
-            el.setAttribute('href',g.href);
+            el.setAttribute('href',g.data);
             el.setAttribute('x',g.x);
             el.setAttribute('y',g.y);
             el.setAttribute('width',g.width);
@@ -3865,14 +4060,16 @@ function makeElement(g) {
             el.setAttribute('flip',g.flip);
             el.setAttribute('opacity',g.opacity);
             if((g.spin!=0)||(g.flip!=0)) setTransform(el);
-            nodes.push({'x':(g.cx-g.rx),'y':(g.cy-g.ry),'n':Number(g.id*10+1)}); // ...top/left: node 0
-            nodes.push({'x':Number(g.cx)+Number(g.rx),'y':(g.cy-g.ry),'n':Number(g.id*10+2)}); // top/right: node 1
+            /* SET NODES USING WIDTH & HEIGHT
+            nodes.push({'x':g.x,'y':g.y,'n':Number(g.id*10+1)}); // ...top/left: node 0
+            nodes.push({'x':g.cx)+Number(g.rx),'y':(g.cy-g.ry),'n':Number(g.id*10+2)}); // top/right: node 1
             nodes.push({'x':(g.cx-g.rx),'y':Number(g.cy)+Number(g.ry),'n':Number(g.id*10+3)}); // bottom/left: node 2
             nodes.push({'x':Number(g.cx)+Number(g.rx),'y':Number(g.cy)+Number(g.ry),'n':Number(g.id*10+4)}); // bottom/right: node 3
+            */
             break;
     }
-    if(!g.layer) el.setAttribute('layer',1); // compatible with earlier drawings without layers
-    else el.setAttribute('layer',g.layer);
+    el.setAttribute('layer',g.layer);
+    console.log('element layer is '+el.getAttribute('layer'));
     if((g.type!='text')&&(g.type!='set')&&(g.type!='image')) { // set style
     	console.log('set style - fillType is '+g.fillType+'; fill is '+g.fill);
     	el.setAttribute('stroke',g.stroke);
@@ -3886,9 +4083,9 @@ function makeElement(g) {
 			if(pattern[n].spin>0) html+=" patternTransform='rotate("+pattern[n].spin+")'";
 			html+='>'+pattern[n].svg+'</pattern>';
 			console.log('pattern HTML: '+html);
-			id('defs').innerHTML+=html;
-			id('pattern'+g.id).firstChild.setAttribute('fill',g.fill);
-			id('pattern'+g.id).lastChild.setAttribute('fill',g.fill);
+			getElement('defs').innerHTML+=html;
+			getElement('pattern'+g.id).firstChild.setAttribute('fill',g.fill);
+			getElement('pattern'+g.id).lastChild.setAttribute('fill',g.fill);
 			el.setAttribute('fill','url(#pattern'+g.id+')');
 		}
 		else el.setAttribute('fill',(g.fillType=='none')?'none':g.fill);
@@ -3898,7 +4095,7 @@ function makeElement(g) {
 		}
 		if(g.blur>0) el.setAttribute('filter','url(#blur'+g.blur+')');
     }
-    id('dwg').appendChild(el);
+    getElement('dwg').appendChild(el);
     return el;
 }
 function move(el,dx,dy) {
@@ -3984,7 +4181,7 @@ function move(el,dx,dy) {
             console.log('to '+valX+','+valY);
             el.setAttribute('x',valX);
 			el.setAttribute('y',valY);
-			console.log('now position: '+el.getAttribute('x')+','+el.getAttribute('y'));
+			console.log('new position: '+el.getAttribute('x')+','+el.getAttribute('y'));
             updateGraph(el.id,['x',valX,'y',valY],true);
     }
     setTransform(el); // adjust spin to new position
@@ -3999,7 +4196,7 @@ function re(op) { // op is 're-member' (memorise and show undo), 're-call' (rein
         for(var i=0;i<selection.length;i++) {
             elID=selection[i];
             console.log('selected item '+i+': '+elID);
-            var el=id(elID);
+            var el=getElement(elID);
             var props={};
             props.id=elID; // all elements have an id
             console.log('element '+elID+' - '+type(el));
@@ -4037,8 +4234,8 @@ function re(op) { // op is 're-member' (memorise and show undo), 're-call' (rein
             memory.push(props);
             console.log('selection['+i+']: '+props.id);
         }
-        id('line').style.display='none';
-        id('undoButton').style.display='block';
+        getElement('line').style.display='none';
+        getElement('undoButton').style.display='block';
         return;
     }
     else if(op=='call') for(var i=0;i<memory.length;i++) { // reinstate from memory
@@ -4046,7 +4243,7 @@ function re(op) { // op is 're-member' (memorise and show undo), 're-call' (rein
         console.log('reinstate item '+item.id);
         prompt('UNDO');
         elID=item.id;
-        var el=id(elID);
+        var el=getElement(elID);
         console.log('reinstate '+elID);
         switch(type(el)) {
             case 'line':
@@ -4100,8 +4297,8 @@ function re(op) { // op is 're-member' (memorise and show undo), 're-call' (rein
         if(item.transform) el.setAttribute('transform',item.transform)
         else el.setAttribute('transform','rotate(0)');
     }
-    id('undoButton').style.display='none';
-    id('line').style.display='block';
+    getElement('undoButton').style.display='none';
+    getElement('line').style.display='block';
 }
 function redrawDim(d) {
     var request=db.transaction('graphs','readwrite').objectStore('graphs').put(d);
@@ -4136,13 +4333,13 @@ function redrawDim(d) {
         }
         a*=180/Math.PI; // angle in degrees
         var t='rotate('+a+','+x1+','+y1+')';
-        id(d.id).setAttribute('transform',t); // adjust dimension rotation
-        var line=id(d.id).firstChild;
+        getElement(d.id).setAttribute('transform',t); // adjust dimension rotation
+        var line=getElement(d.id).firstChild;
         line.setAttribute('x1',x1); // adjust dimension end points
         line.setAttribute('y1',y1);
         line.setAttribute('x2',x1+len);
         line.setAttribute('y2',y1);
-        t=id(d.id).children[1]; // adjust text location
+        t=getElement(d.id).children[1]; // adjust text location
         t.setAttribute('x',Number(x1+len/2));
         t.setAttribute('y',Number(y1-1));
         t.innerHTML=len; // adjust dimension measurement
@@ -4305,8 +4502,8 @@ function remove(elID,keepNodes) {
             dims.splice(i,1); // remove dimension link
         }
     }
-    var el=id(elID);
-    var ptn=id('pattern'+elID); // remove any associated pattern
+    var el=getElement(elID);
+    var ptn=getElement('pattern'+elID); // remove any associated pattern
     if(ptn) ptn.remove(); 
     var request=db.transaction('graphs','readwrite').objectStore('graphs').delete(Number(elID));
     request.onsuccess=function(event) {
@@ -4323,17 +4520,36 @@ function reset() {
     dwg.x=0;
     dwg.y=0;
     console.log('new viewBox: '+dwg.x+','+dwg.y+' '+dwg.w+'x'+dwg.h);
-    id('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+(dwg.w*scale)+' '+(dwg.h*scale));
-    id('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+(dwg.w*scale)+' '+(dwg.h*scale));
+    getElement('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+(dwg.w*scale)+' '+(dwg.h*scale));
+    getElement('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+(dwg.w*scale)+' '+(dwg.h*scale));
+};
+async function save(fileName,data,type) {
+	var handle;
+	if(fileName) {
+		switch(type) {
+			case 'json':
+				opts={suggestedName: fileName+'.json'};
+				break;
+			case 'svg':
+				opts={suggestedName: fileName+'.svg'};
+		}
+		// window.localStorage.setItem('name',name);
+		handle=await window.showSaveFilePicker(opts);
+	}
+	else handle=await window.showSaveFilePicker();
+	console.log('file handle: '+handle);
+	var writable=await handle.createWritable();
+    await writable.write(data);
+    await writable.close();
 }
 function saveSVG() {
-    id('datumSet').style.display='none';
-    var fileName=id('printName').value+'.svg';
+    getElement('datumSet').style.display='none';
+    var fileName=getElement('printName').value+'.svg';
     var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+dwg.w+'mm" height="'+dwg.h+'mm" viewBox="0 0 '+dwg.w+' '+dwg.h+'">';
-    svg+=id('dwg').innerHTML+'</svg>';
+    svg+=getElement('dwg').innerHTML+'</svg>';
     console.log('SVG: '+svg);
     download(svg,fileName,'data:image/svg+xml');
-	id('datumSet').style.display='block';
+	getElement('datumSet').style.display='block';
 }
 function select(el,multiple) {
 	if(multiple) { // one of multiple selection - highlight in blue
@@ -4342,17 +4558,21 @@ function select(el,multiple) {
 		var html="<rect x='"+box.x+"' y='"+box.y+"' width='"+box.width+"' height='"+box.height+"' ";
 		html+="stroke='none' fill='blue' fill-opacity='0.25' el='"+el.id+"'/>";
 		console.log('box html: '+html);
-		id('selection').innerHTML+=html; // blue block for this element
+		getElement('selection').innerHTML+=html; // blue block for this element
 	}
 	else {
-		console.log('select element '+el);
-    	id('handles').innerHTML=''; // clear any handles then add handles for selected element 
+		//TRY SETTING GLOBAL VARIABLE FOR SELECTED ELEMENT
+		element=el;
+		var l=element.getAttribute('layer');
+		console.log('SELECT ELEMENT '+element.getAttribute('id')+' - layer '+l);
+		getElement('choice'+l).checked=true;
+    	getElement('handles').innerHTML=''; // clear any handles then add handles for selected element 
     	// first draw node markers?
-    	for(var i=0;i<nodes.length;i++) { // draw tiny circle at each node
+    	for(i=0;i<nodes.length;i++) { // draw tiny circle at each node
         if(Math.floor(nodes[i].n/10)!=elID) continue;
         var html="<circle cx='"+nodes[i].x+"' cy='"+nodes[i].y+"' r='"+scale+"'/>";
         console.log('node at '+nodes[i].x+','+nodes[i].y);
-        id('handles').innerHTML+=html;
+        getElement('handles').innerHTML+=html;
     }
     	switch(type(el)) {
     		case 'curve':
@@ -4369,15 +4589,15 @@ function select(el,multiple) {
 					}
 					var points='';
 					for(var i=0;i<graph.points.length;i++) points+=pts[i].x+','+pts[i].y+' ';
-					id('bluePolyline').setAttribute('points',points);
+					getElement('bluePolyline').setAttribute('points',points);
 					var html="<use id='mover0' href='#mover' x='"+pts[0].x+"' y='"+pts[0].y+"'/>";
-					id('handles').innerHTML+=html; // circle handle moves whole element
+					getElement('handles').innerHTML+=html; // circle handle moves whole element
 					for(var i=1;i<pts.length;i++) {
 						html="<use id='sizer"+i+"' href='#sizer' x='"+pts[i].x+"' y='"+pts[i].y+"'/>";
-						id('handles').innerHTML+=html; // disc handles move remaining nodes
+						getElement('handles').innerHTML+=html; // disc handles move remaining nodes
 					}
 				}
-				id('guides').style.display='block';
+				getElement('guides').style.display='block';
 				prompt('CURVE');
 				node=0; // default anchor node
 				mode='pointEdit';
@@ -4393,13 +4613,13 @@ function select(el,multiple) {
             	setSizes('box',el.getAttribute('spin'),w,h,el.layer); // size of bounding box
             	// draw handles
             	var html="<use id='mover0' href='#mover' x='"+points[0].x+"' y='"+points[0].y+"'/>";
-            	id('handles').innerHTML+=html; // circle handle moves whole element
+            	getElement('handles').innerHTML+=html; // circle handle moves whole element
             	for(var i=1;i<n;i++) {
                 html="<use id='sizer"+i+"' href='#sizer' x='"+points[i].x+"' y='"+points[i].y+"'/>";
-                id('handles').innerHTML+=html; // disc handles move remaining nodes
+                getElement('handles').innerHTML+=html; // disc handles move remaining nodes
             }
-            	id('bluePolyline').setAttribute('points',el.getAttribute('points'));
-            	id('guides').style.display='block';
+            	getElement('bluePolyline').setAttribute('points',el.getAttribute('points'));
+            	getElement('guides').style.display='block';
             	hint('SHAPE');
             	if(mode=='shape') prompt('SHAPE');
             	node=0; // default anchor node
@@ -4411,18 +4631,18 @@ function select(el,multiple) {
             	w=parseFloat(el.getAttribute('width'));
             	h=parseFloat(el.getAttribute('height'));
             	// draw blueBox for sizing
-            	id('blueBox').setAttribute('x',x); // SET blueBox TO MATCH BOX (WITHOUT SPIN)
-            	id('blueBox').setAttribute('y',y);
-            	id('blueBox').setAttribute('width',w);
-            	id('blueBox').setAttribute('height',h);
-            	id('guides').style.display='block';
+            	getElement('blueBox').setAttribute('x',x); // SET blueBox TO MATCH BOX (WITHOUT SPIN)
+            	getElement('blueBox').setAttribute('y',y);
+            	getElement('blueBox').setAttribute('width',w);
+            	getElement('blueBox').setAttribute('height',h);
+            	getElement('guides').style.display='block';
             	// draw handles
             	var html="<use id='mover0' href='#mover' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // center
             	html+="<use id='sizer1' href='#sizer' x='"+x+"' y='"+y+"'/>"; // top/left
             	html+="<use id='sizer2' href='#sizer' x='"+(x+w)+"' y='"+y+"'/>"; // top/right
             	html+="<use id='sizer3' href='#sizer' x='"+x+"' y='"+(y+h)+"'/>"; // bottom/left
             	html+="<use id='sizer4' href='#sizer' x='"+(x+w)+"' y='"+(y+h)+"'/>"; // bottom/right
-            	id('handles').innerHTML+=html;
+            	getElement('handles').innerHTML+=html;
             	console.log('spin: '+el.getAttribute('spin')+' layer is '+el.getAttribute('layer'));
             	setSizes('box',el.getAttribute('spin'),w,h);
             	showInfo(true,(w==h)?'SQUARE':'BOX',el.getAttribute('layer'));
@@ -4435,18 +4655,18 @@ function select(el,multiple) {
             	w=parseFloat(el.getAttribute('rx'))*2;
             	h=parseFloat(el.getAttribute('ry'))*2;
             	// draw blueBox for sizing
-            	id('blueBox').setAttribute('x',(x-w/2)); // SET blueBox TO MATCH OVAL (WITHOUT SPIN)
-            	id('blueBox').setAttribute('y',(y-h/2));
-            	id('blueBox').setAttribute('width',w);
-            	id('blueBox').setAttribute('height',h);
-            	id('guides').style.display='block';
+            	getElement('blueBox').setAttribute('x',(x-w/2)); // SET blueBox TO MATCH OVAL (WITHOUT SPIN)
+            	getElement('blueBox').setAttribute('y',(y-h/2));
+            	getElement('blueBox').setAttribute('width',w);
+            	getElement('blueBox').setAttribute('height',h);
+            	getElement('guides').style.display='block';
             	// draw handles
             	var html="<use id='mover0' href='#mover' x='"+x+"' y='"+y+"'/>"; // center
             	html+="<use id='sizer1' href='#sizer' x='"+(x-w/2)+"' y='"+(y-h/2)+"'/>"; // top/left
             	html+="<use id='sizer2' href='#sizer' x='"+(x+w/2)+"' y='"+(y-h/2)+"'/>"; // top/right
             	html+="<use id='sizer3' href='#sizer' x='"+(x-w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/left
             	html+="<use id='sizer4' href='#sizer' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/right
-            	id('handles').innerHTML+=html;
+            	getElement('handles').innerHTML+=html;
             	setSizes('box',el.getAttribute('spin'),w,h);
             	showInfo(true,(w==h)?'CIRCLE':'OVAL',el.getAttribute('layer'));
             	node=0; // default anchor node
@@ -4460,7 +4680,7 @@ function select(el,multiple) {
             	var html="<use id='mover0' href='#mover' x='"+arc.cx+"' y='"+arc.cy+"'/>"; // mover at centre
             	html+="<use id='sizer1' href='#sizer' x='"+arc.x1+"' y='"+arc.y1+"'/>"; // sizers at start...
             	html+="<use id='sizer2' href='#sizer' x='"+arc.x2+"' y='"+arc.y2+"'/>"; // ...and end or arc
-            	id('handles').innerHTML+=html;
+            	getElement('handles').innerHTML+=html;
             	var a1=Math.atan((arc.y1-arc.cy)/(arc.x1-arc.cx));
             	if(arc.x1<arc.cx) a1+=Math.PI;
             	var a=Math.atan((arc.y2-arc.cy)/(arc.x2-arc.cx));
@@ -4484,7 +4704,7 @@ function select(el,multiple) {
 	            h=Math.round(bounds.height);
 	            console.log('bounds: '+bounds.x+','+bounds.y+' - '+bounds.width+'x'+bounds.height);
         	    var html="<use id='mover0' href='#mover' x='"+bounds.x+"' y='"+bounds.y+"'/>";
-	            id('handles').innerHTML+=html; // circle handle moves text
+	            getElement('handles').innerHTML+=html; // circle handle moves text
 	            var t=element.innerHTML;
 	            console.log('text: '+t);
 	            var content='';
@@ -4500,12 +4720,11 @@ function select(el,multiple) {
 	            	}
 	            }
 	            else content=t;
-	            id('text').value=content;
-	            // id('textDialog').style.left='50px';
-            	// id('textDialog').style.top='50px';
-            	id('text').value=content;
+	            getElement('text').value=content;
+            	getElement('text').value=content;
+            	setSizes('text',el.getAttribute('spin'),w,h);
+            	showInfo(true,'TEXT',el.layer);
             	showDialog('textDialog',true);
-            	// id('textDialog').style.display='block';
             	node=0; // default anchor node
         	    mode='edit';
             	break;
@@ -4520,7 +4739,7 @@ function select(el,multiple) {
 	            // draw handle
     	        var html="<use id='mover0' href='#mover' x='"+((x1+x2)/2)+"' y='"+((y1+y2)/2)+"' "; 
         	    html+="transform='"+spin+"'/>";
-            	id('handles').innerHTML+=html;
+            	getElement('handles').innerHTML+=html;
 	            prompt('DIMENSION');
     	        mode='edit';
         	    break;
@@ -4534,7 +4753,7 @@ function select(el,multiple) {
             	// draw handle
 	            var html="<use id='mover0' href='#mover' x='"+x+"' y='"+y+"'/>";
 	            // var html="<circle id='handle' cx='"+x+"' cy='"+y+"' r='"+handleR+"' stroke='none' fill='#0000FF88'/>";
-    	        id('handles').innerHTML=html;
+    	        getElement('handles').innerHTML=html;
         	    setSizes('box',el.getAttribute('spin'),w,h);
             	showInfo(true,'SET',el.layer);
 	            mode='edit';
@@ -4547,15 +4766,15 @@ function select(el,multiple) {
     	        h=Number(bounds.height);
             	console.log('height: '+h);
             	// draw blueBox for sizing
-            	id('blueBox').setAttribute('x',x); // SET blueBox TO MATCH BOX (WITHOUT SPIN)
-            	id('blueBox').setAttribute('y',y);
-            	id('blueBox').setAttribute('width',w);
-            	id('blueBox').setAttribute('height',h);
-            	id('guides').style.display='block';
+            	getElement('blueBox').setAttribute('x',x); // SET blueBox TO MATCH BOX (WITHOUT SPIN)
+            	getElement('blueBox').setAttribute('y',y);
+            	getElement('blueBox').setAttribute('width',w);
+            	getElement('blueBox').setAttribute('height',h);
+            	getElement('guides').style.display='block';
             	// draw handles
     	    	var html="<use id='mover0' href='#mover' x='"+x+"' y='"+y+"'/>"; // mover - top/left
             	html+="<use id='sizer1' href='#sizer' x='"+(x+w)+"' y='"+(y+h)+"'/>"; // sizer - bottom/right
-            	id('handles').innerHTML+=html;
+            	getElement('handles').innerHTML+=html;
             	setSizes('image',el.getAttribute('spin'),w,h);
             	showInfo(true,'IMAGE',el.layer);
             	node=0; // default anchor node
@@ -4579,7 +4798,7 @@ function setButtons() {
         active.push(25);
     }
     else { // single element selected
-        var t=type(id(selection[0]));
+        var t=type(getElement(selection[0]));
         // console.log('selected element is '+t);
         if((t=='line')||(t=='shape')) active.push(1); // can add points to selected line/shape
         else if(t=='box') active.push(23); // fillet tool active for a selected box
@@ -4592,50 +4811,47 @@ function setButtons() {
             active.push(25);
         } 
     }
-    if(n>1) id('info').style.height=0;
+    if(n>1) getElement('info').style.height=0;
     var set='';
     for(i=0;i<active.length;i++) set+=active[i]+' ';
     // console.log(active.length+' edit tools active: '+set);
-    var n=id('editTools').childNodes.length;
+    var n=getElement('editTools').childNodes.length;
     for(var i=0;i<n;i++) {
-        var btn=id('editTools').childNodes[i];
+        var btn=getElement('editTools').childNodes[i];
         // console.log(i+' '+btn.id+': '+(active.indexOf(i)>=0));
-        id('editTools').childNodes[i].disabled=(active.indexOf(i)<0);
+        getElement('editTools').childNodes[i].disabled=(active.indexOf(i)<0);
     }
 }
 function setLayer() {
 	console.log('SET CURRENT ELEMENT LAYER');
 	var elementLayer=null;
 	for(var i=0;i<10;i++) {
-		if(i>0) {
-			if(id('choice'+i).checked) elementLayer=i;
-			if(i>0) id('choice'+i).innerText=i+' '+layers[i].name;
-		}
-		id('elementLayer').innerText=elementLayer;
+		if(getElement('choice'+i).checked) elementLayer=i;
+		if(i>0) getElement('choice'+i).innerText=i+' '+layers[i].name;
+		getElement('elementLayer').innerText=elementLayer;
 	}
+	element.setAttribute('layer',elementLayer);
+	updateGraph(element.id,['layer',elementLayer]);
 }
 function setLayers() {
 	console.log('set layers');
 	for(var i=0;i<10;i++) {
 		console.log('layer '+i+' name: '+layers[i].name+' chosen: '+' visible: '+layers[i].visible);
-		if(i>0) {
-			if(id('layer'+i).checked) layer=i;
-			if(i>0) layers[i].name=id('layerName'+i).value; // id('layerName'+i).value=layers[i].name=layers[i].name;
-		}
-		// id('layerVisible'+i).checked=layers[i].visible;
-		id('layer').innerText=layer;
+		if(getElement('layer'+i).checked) layer=i;
+		if(i>0) layers[i].name=getElement('layerName'+i).value; // getElement('layerName'+i).value=layers[i].name=layers[i].name;
+		getElement('layer').innerText=layer;
 	}
 	setLayerVisibility();
 }
 function setLayerVisibility() {
 	console.log('set layer visibilities');
-	for(var i=1;i<10;i++) {
-		layers[i].visible=id('layerVisible'+i).checked;
+	for(var i=0;i<10;i++) {
+		layers[i].visible=getElement('layerVisible'+i).checked;
 	}
-	var children=id('dwg').children;
+	var children=getElement('dwg').children;
 	for(i=0;i<children.length;i++) {
 		var layer=children[i].getAttribute('layer');
-		console.log('child '+i+' layer: '+layer);
+		// console.log('child '+i+' layer: '+layer);
 		var show=layers[layer].visible;
 		children[i].style.display=(show)?'block':'none';
 	}
@@ -4643,13 +4859,13 @@ function setLayerVisibility() {
     data.layers=[];
     for(i=0;i<10;i++) {
     	data.layers[i]={};
-    	console.log('save layer '+i+': '+layers[i].name+' visible: '+layers[i].visible);
+    	// console.log('save layer '+i+': '+layers[i].name+' visible: '+layers[i].visible);
     	data.layers[i].name=layers[i].name;
     	data.layers[i].visible=layers[i].visible;
     	data.layers[i].checked=layers[i].checked;
     }
 	var json=JSON.stringify(data);
-	console.log('layers JSON: '+json);
+	// console.log('layers JSON: '+json);
 	window.localStorage.setItem('layers',json);
 }
 function setLineStyle(g) {
@@ -4660,10 +4876,10 @@ function setLineStyle(g) {
 function setSizes(mode,spin,p1,p2,p3,p4) {
     console.log('setSizes - '+mode+','+p1+','+p2+','+p3+','+p4+' spin '+spin);
     if(mode=='box') {
-        id('first').value=Math.round(p1);
-        id('between').innerHTML='x';
-        id('second').value=Math.round(p2);
-        id('after').innerHTML='mm';
+        getElement('first').value=Math.round(p1);
+        getElement('between').innerHTML='x';
+        getElement('second').value=Math.round(p2);
+        getElement('after').innerHTML='mm';
     }
     else if(mode=='polar') { // drawing line or arc
         var h=p3-p1;
@@ -4673,88 +4889,88 @@ function setSizes(mode,spin,p1,p2,p3,p4) {
         a=Math.round(a*180/Math.PI); // degrees
         a+=90; // from North
         if(p3<p1) a+=180;
-        id('first').value=d;
-        id('between').innerHTML='mm';
-        id('second').value=a;
-        id('after').innerHTML='&deg;';
+        getElement('first').value=d;
+        getElement('between').innerHTML='mm';
+        getElement('second').value=a;
+        getElement('after').innerHTML='&deg;';
     }
     else { // arc
-        id('first').value=Math.round(p1); // radius
-        id('between').innerHTML='mm';
-        id('second').value=Math.round(p2); // angle of arc
-        id('after').innerHTML='&deg;';
+        getElement('first').value=Math.round(p1); // radius
+        getElement('between').innerHTML='mm';
+        getElement('second').value=Math.round(p2); // angle of arc
+        getElement('after').innerHTML='&deg;';
     }
-    id('spin').value=spin;
+    getElement('spin').value=spin;
 }
 function setStyle() {
 	console.log('setStyle: '+selection.length+' items selected');
-	var el=(selection.length>0)?id(selection[0]):null;
+	var el=(selection.length>0)?getElement(selection[0]):null;
     if(!el ||(type(el)=='set')||(type(el)=='dim')||(type(el)=='image')) { // no element/set/dimension - show default styles
-        id('lineType').value=lineType;
-        id('line').style.borderBottomStyle=lineType;
-        id('line').style.borderWidth=pen+'mm';
-        id('lineColor').style.backgroundColor=lineColor;
-        id('line').style.borderColor=lineColor;
-        id('fill').style.backgroundColor=fillColor;
-        id('fill').style.opacity=opacity;
-        id('patternOption').disabled=true;
-        id('opacity').value=opacity;
+        getElement('lineType').value=lineType;
+        getElement('line').style.borderBottomStyle=lineType;
+        getElement('line').style.borderWidth=pen+'mm';
+        getElement('lineColor').style.backgroundColor=lineColor;
+        getElement('line').style.borderColor=lineColor;
+        getElement('fill').style.backgroundColor=fillColor;
+        getElement('fill').style.opacity=opacity;
+        getElement('patternOption').disabled=true;
+        getElement('opacity').value=opacity;
     }
     else { // show styles for element el
     	console.log('set style for element '+el.id);
         val=getLineStyle(el);
-        id('lineType').value=val;
-        id('line').style.borderBottomStyle=val;
+        getElement('lineType').value=val;
+        getElement('line').style.borderBottomStyle=val;
         val=el.getAttribute('stroke-width');
         if(val) {
-            id('line').style.borderWidth=(val/scaleF)+'px';
+            getElement('line').style.borderWidth=(val/scaleF)+'px';
             val=Math.floor(val/4);
             if(val>3) val=3;
             console.log('select option '+val);
-            id('penSelect').options[val].selected=true;;
+            getElement('penSelect').options[val].selected=true;;
         }
         val=el.getAttribute('stroke');
         if(val) {
-            id('lineColor').style.backgroundColor=val;
-            id('line').style.borderColor=val;
+            getElement('lineColor').style.backgroundColor=val;
+            getElement('line').style.borderColor=val;
         }
-        id('patternOption').disabled=false;
+        getElement('patternOption').disabled=false;
         val=el.getAttribute('fillType');
         console.log('fillType: '+val);
         if(val.startsWith('url')) {
-        	id('fillType').value='pattern';
-        	id('fillCol').value=id('pattern'+el.id).firstChild.getAttribute('fill');
+        	getElement('fillType').value='pattern';
+        	getElement('fillCol').value=getElement('pattern'+el.id).firstChild.getAttribute('fill');
         }
         else if(val=='none') {
-            id('fill').style.background='#00000000';
-            id('fillColor').style.backgroundColor='white';
-            id('opacity').value=0;
+            getElement('fill').style.background='#00000000';
+            getElement('fillColor').style.backgroundColor='white';
+            getElement('opacity').value=0;
         }
         else {
             if(type(el)=='text') {
-                id('lineColor').style.backgroundColor=val;
+                getElement('lineColor').style.backgroundColor=val;
             }
             else {
-                id('fillColor').style.backgroundColor=val;
-                id('fill').style.background=val;
+                getElement('fillColor').style.backgroundColor=val;
+                getElement('fill').style.background=val;
             }
         }
         val=el.getAttribute('fill-opacity');
         if(val) {
-            id('opacity').value=val;
-            id('fill').style.opacity=val;
+            getElement('opacity').value=val;
+            getElement('fill').style.opacity=val;
         }
         if(type(el)=='text') {
             val=el.getAttribute('font-size')/scale;
             console.log('text size: '+val);
-            id('textSize').value=val;
-            id('textStyle').value='fine';
+            getElement('textSize').value=val;
+            getElement('textStyle').value='fine';
             val=el.getAttribute('font-style');
-            if(val=='italic') id('textStyle').value='italic';
+            if(val=='italic') getElement('textStyle').value='italic';
             val=el.getAttribute('font-weight');
-            if(val=='bold') id('textStyle').value='bold';
-            id('patternOption').disabled=true;
-            id('patternOption').disabled=true;
+            if(val=='bold') getElement('textStyle').value='bold';
+            getElement('patternOption').disabled=true;
+            getElement('patternOption').disabled=true;
         } 
     }
 }
@@ -4796,48 +5012,48 @@ function setTransform(el) {
 }
 function showDialog(dialog,visible) {
     console.log('show dialog '+dialog);
-    if(visible) id('prompt').style.display='none';
-    if(currentDialog) id(currentDialog).style.display='none'; // hide any currentDialog
-    id('colorPicker').style.display='none';
-    id(dialog).style.display=(visible)?'block':'none'; // show/hide dialog
+    // if(visible) getElement('prompt').style.display='none';
+    if(currentDialog) getElement(currentDialog).style.display='none'; // hide any currentDialog
+    getElement('colorPicker').style.display='none';
+    getElement(dialog).style.display=(visible)?'block':'none'; // show/hide dialog
     currentDialog=(visible)?dialog:null; // update currentDialog
 }
 function showcolorPicker(visible,x,y) {
-    var m=id('colorPicker').mode;
+    var m=getElement('colorPicker').mode;
     console.log('show colorPicker - mode is '+m);
-    id('#FFF').setAttribute('fill',(m=='line')?'blue':'white');
+    getElement('#FFF').setAttribute('fill',(m=='line')?'blue':'white');
     if(x) {
-        id('colorPicker').style.left=x+'px';
-        id('colorPicker').style.top=y+'px';
+        getElement('colorPicker').style.left=x+'px';
+        getElement('colorPicker').style.top=y+'px';
     }
-    id('colorPicker').style.display=(visible)?'block':'none';
+    getElement('colorPicker').style.display=(visible)?'block':'none';
 }
 function showEditTools(visible) {
     if(visible) {
-        id('tools').style.display='none';
-        id('editTools').style.display='block';
+        getElement('tools').style.display='none';
+        getElement('editTools').style.display='block';
     }
     else {
-        id('editTools').style.display='none';
-        id('tools').style.display='block';
+        getElement('editTools').style.display='none';
+        getElement('tools').style.display='block';
     }
 }
 function showInfo(visible,type,layer,hint) {
 	console.log((visible)?'show info':'hide info');
 	if(!visible) {
-		id('info').style.height=0;
+		getElement('info').style.height=0;
 		return;
 	}
 	console.log(type+'; '+layer+'; '+hint);
-	id('type').innerText=type;
-	id('elementLayer').innerText=' layer '+layer;
+	getElement('type').innerText=type;
+	getElement('elementLayer').innerText=' layer '+layer;
 	if(hint) {
-		id('info').style.height='50px';
-		id('hint').innerText=hint;
+		getElement('info').style.height='50px';
+		getElement('hint').innerText=hint;
 	}
 	else {
-		id('info').style.height='36px';
-		id('hint').innerText='';
+		getElement('info').style.height='30px';
+		getElement('hint').innerText='';
 	}
 }
 function snapCheck() {
@@ -4858,14 +5074,14 @@ function snapCheck() {
             datum1.x=datum2.x;
             datum1.y=datum2.y;
             datum1.n=datum2.n;
-            id('datum1').setAttribute('x',datum1.x);
-            id('datum1').setAttribute('y',datum1.y);
+            getElement('datum1').setAttribute('x',datum1.x);
+            getElement('datum1').setAttribute('y',datum1.y);
             console.log('DATUM1: '+datum1.n+' at '+datum1.x+','+datum1.y);
             datum2.x=snap.x;
             datum2.y=snap.y;
             datum2.n=snap.n;
-            id('datum2').setAttribute('x',datum2.x);
-            id('datum2').setAttribute('y',datum2.y);
+            getElement('datum2').setAttribute('x',datum2.x);
+            getElement('datum2').setAttribute('y',datum2.y);
             console.log('DATUM2: '+datum2.n+' at '+datum2.x+','+datum2.y);
         }
         x=snap.x;
@@ -4993,8 +5209,10 @@ function updateGraph(id,parameters,textElement) {
 	        val=parameters.shift();
 	        console.log('set '+attribute+' to '+val);
 	        if(attribute=='text') graph.text=val;
+	        else if(attribute=='layer') graph.layer=parseInt(val);
 	        else eval('graph.'+attribute+'="'+val+'"');
 	    }
+	    if(graph.type=='text') console.log('text: '+graph.text)
 	    request=graphs.put(graph);
 	    request.onsuccess=function(event) {
 			    console.log('graph '+id+' updated');
@@ -5018,9 +5236,13 @@ request.onupgradeneeded=function(event) {
     var db=event.target.result;
     if (!db.objectStoreNames.contains('graphs')) {
         var graphs=db.createObjectStore('graphs',{keyPath:'id',autoIncrement:true});
+        graphs.createIndex('layerIndex','layer');
     }
     if (!db.objectStoreNames.contains('sets')) {
         var sets=db.createObjectStore("sets",{keyPath:'name'});
+    }
+    if (!db.objectStoreNames.contains('images')) {
+        var sets=db.createObjectStore("images",{keyPath:'name'});
     }
 };
 request.onerror=function(event) {

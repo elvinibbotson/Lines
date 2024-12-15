@@ -18,7 +18,7 @@
             <rect id='paperSheet' x='0' y='0' width='297' height='210' stroke='none' fill='white'>
         <div id='drawing' draggable='false'>
 		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
-		    <defs>
+		    <defs id='defs'>
 		    	<filter id='blur1' x='-10' y='-10' width='297' height='210'>
 		            <feGaussianBlur in='SourceGraphic' stdDeviation='1'/>
 		        </filter>
@@ -131,7 +131,7 @@
         <input id='spin' type='number'/>&deg;<span id='elementLayer'> layer # </span>
         <br><span id='hint'></span>
     </div>
-    <div id='layerChooser'>
+    <div id='layerChooser' class='dialog'>
     	<ul id='layerChoice'>
     		<li>0 <input type='radio' id='choice0' name='layers' class='layerChooser' value=0> background</li>
     		<li>1 <input type='radio' id='choice1' name='layers' class='layerChooser' value=0></li>
@@ -203,6 +203,7 @@
     			
     		</li>
     	</ul>
+    	<input type='checkbox' id='stacked'>stack layers
     </div>
     </div>
     <div id='docDialog' class='dialog'>
@@ -254,20 +255,14 @@
         </select>
     </div>
     <div id='loadDialog' class='dialog'>
-        <b>LOAD</b>
+        <button id='confirmLoad'>LOAD</button>
         <p>
-        <input type='radio' name='loadMethod' id='replace' checked>
-        <label for='replace'>replace</label><br>
-        <input type='radio' name='loadMethod' id='merge'>
-        <label for='merge'>merge</label><br>
-        <!--input type='radio' name='loadMethod' id='refer'>
-        <label for='refer'>reference drawing</label><br>
-        <input type='radio' name='loadMethod' id='bckgrnd'>
-        <label for='bckgrnd'>background image</label><br-->
+        <input type='radio' name='loadMethod' id='drawing' checked>
+        <label for='drawing'>drawing</label><br>
         <input type='radio' name='loadMethod' id='set'>
-        <label for='set'>set</label>
-        </p>
-        <p><input type="file" id="fileChooser" class='nameField'>
+        <label for='set'>set(s)</label><br>
+        <input type='radio' name='loadMethod' id='image'>
+        <label for='image'>image</label>
         </p>
     </div>
     <div id='saveDialog' class='dialog'>
@@ -276,12 +271,11 @@
             <input type='radio' name='saveMethod' id='data' checked>
             <label for='data'>drawing (json)</label><br>
             <input type='radio' name='saveMethod' id='print'>
-            <label for='print'>as SVG (to print)</label><br>
-            <input type='radio' name='saveMethod' id='image'>
-            <label for='image'>as an image (PNG)</label><br>
+            <label for='print'>drawing as SVG (to print)</label><br>
+            <input type='radio' name='saveMethod' id='sets'>
+            <label for='image'>one or more sets...</label>
+            <ul id='setChooser'></ul>
         </p>
-        <p>as <input type='text' id='saveName' class='nameField'/>.json</p>
-        <p>The file will appear in your downloads folder</p>
     </div>
     <div id='dimDialog' class='dialog'>
         <button id='confirmDim'>DIMENSION</button>
@@ -299,10 +293,12 @@
         </select></p>
     </div>
     <div id='imageDialog' class='dialog'>
-        <b>IMAGE</b>
-        <p><input type="file" id="imageChooser" accept="image/png, image/jpg, image/jpeg" class='nameField'></p>
-        <img id='preview' src='#'>
+    	<p>select an image</p>
+        <p><select id='imageList'>
+            <option onclick='prompt("select a set");' value=null>select an image</option>
+        </select></p>
     </div>
+    <div id='hiddenImage'><img id='preview' src='#'></div>
     <div id='stylesDialog' class='dialog'>
         <p>line 
         <select id='lineType'>
