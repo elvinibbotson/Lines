@@ -418,7 +418,7 @@ getElement('boxButton').addEventListener('click',function() {
 });
 getElement('ovalButton').addEventListener('click',function() { // OVAL/CIRCLE
     mode='oval';
-    showInfo(true,'OVAL',layer,'drag to size');
+    showInfo(true,'OVAL',layer,'drag from centre');
 })
 getElement('arcButton').addEventListener('click', function() {
    mode='arc';
@@ -2300,7 +2300,7 @@ function drag(event) {
             setSizes('box',null,w,h);
             break;
         case 'ovalSize':
-            var aspect=w/h;
+        	var aspect=w/h;
             dx=(node%2<1)?(x-x0):(x0-x);
             dy=(node>2)?(y-y0):(y0-y);
             if(Math.abs(dx)<(snapD*2)) dx=0; // snap to equal width,...
@@ -2319,7 +2319,6 @@ function drag(event) {
             h+=dy;
             getElement('blueBox').setAttribute('width',w);
             getElement('blueBox').setAttribute('height',h);
-            console.log('set size to '+w+'x'+h);
             setSizes('oval',null,w,h);
             break;
         case 'arcSize':
@@ -2393,6 +2392,16 @@ function drag(event) {
             setSizes('box',null,w,h);
             break;
         case 'oval':
+        	w=Math.abs(x-x0);
+            h=Math.abs(y-y0);
+            if(Math.abs(w-h)<snapD*2) w=h; // snap to circle
+            getElement('blueOval').setAttribute('cx',x0);
+            getElement('blueOval').setAttribute('cy',y0);
+            getElement('blueOval').setAttribute('rx',w/2);
+            getElement('blueOval').setAttribute('ry',h/2);
+            setSizes('box',null,w,h);
+            break;
+        	/*
             w=Math.abs(x-x0);
             h=Math.abs(y-y0);
             if(Math.abs(w-h)<snapD*2) w=h; // snap to circle
@@ -2404,6 +2413,7 @@ function drag(event) {
             getElement('blueOval').setAttribute('ry',h/2);
             setSizes('box',null,w,h);
             break;
+            */
         case 'arc':
             if(Math.abs(x-x0)<snapD) x=x0; // snap to vertical
             if(Math.abs(y-y0)<snapD) y=y0; // snap to horizontal
@@ -3572,7 +3582,8 @@ function cancel() { // cancel current operation and return to select mode
     showEditTools(false);
     getElement('textDialog').style.display='none';
     getElement('layerChooser').style.display='none';
-    getElement('info').style.top='-50px';
+    getElement('info').style.top='-30px';
+    getElement('info').style.height='30px';
     setStyle(); // set styles to defaults
 }
 function checkDims(el) {
@@ -3682,11 +3693,10 @@ function hint(text) {
     getElement('hint').innerHTML=text; //display text for 10 secs
     var t=parseInt(getElement('info').style.top);
     console.log('info top: '+t);
-    getElement('info').style.top='-25px';
+    // getElement('info').style.top='-25px';
     getElement('info').style.height='50px';
-    setTimeout(function(){getElement('info').style.top='-50px';},10000);
-    // getElement('hint').style.display='block';
-    // setTimeout(function(){getElement('hint').style.display='none'},10000);
+    // setTimeout(function(){getElement('info').style.top='-50px';},10000);
+	setTimeout(function(){getElement('info').style.height='30px';},10000);
 }
 function initialise() {
     console.log('set up size '+size+' '+aspect+' 1:'+scale+' scale '+aspect+' drawing');
@@ -4885,7 +4895,7 @@ function setLineStyle(g) {
 }
 function setSizes(mode,spin,p1,p2,p3,p4) {
     console.log('setSizes - '+mode+','+p1+','+p2+','+p3+','+p4+' spin '+spin);
-    if(mode=='box') {
+    if((mode=='box')||(mode=='oval')) {
         getElement('first').value=Math.round(p1);
         getElement('between').innerHTML='x';
         getElement('second').value=Math.round(p2);
@@ -5051,7 +5061,7 @@ function showEditTools(visible) {
 function showInfo(visible,type,layer,hint) {
 	console.log((visible)?'show info':'hide info');
 	if(!visible) {
-		getElement('info').style.top=-50;
+		getElement('info').style.top='-30px';
 		return;
 	}
 	console.log(type+'; '+layer+'; '+hint);
@@ -5060,7 +5070,7 @@ function showInfo(visible,type,layer,hint) {
 	getElement('info').style.top='0px';
 	if(!hint) getElement('info').style.height='30px';
 	else {
-		getElement('info').style.height='50px';
+		// getElement('info').style.height='50px';
 		getElement('hint').innerText=hint;
 		setTimeout(function(){getElement('info').style.height='30px';},10000);
 	}

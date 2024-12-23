@@ -142,10 +142,10 @@ li {
 }
 #info {
     position: fixed;
-    top: -50px;
+    top: -30px;
     left: 48px;
     right: 0;
-    height: 50px;
+    height: 30px;
     font-size: 1em;
     color: black;
     background-color: #ffffff80;
