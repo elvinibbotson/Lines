@@ -1,0 +1,356 @@
+body {
+	margin: 0;
+	height: 100%;
+	overflow: hidden;
+	font-family: sans-serif;
+	background: silver;
+}
+input {
+    width: 64px;
+	height: 24px;
+	color: black;
+	background-color: white;
+	opacity: 0.5;
+	border: 1px solid gray;
+	padding: 0;
+	margin: 1px;
+	font-size: 1.2em;
+}
+textarea {
+	padding: 5px;
+	max-width: 100%;
+	line-height: 1.5;
+	font-size: 0.8rem;
+	letter-spacing: 1px;
+}
+img {
+    vertical-align: bottom;
+    border: 1px solid gray;
+}
+select {
+    color: black;
+    background-color: white;
+    height: 32px;
+    border: 1px solid gray;
+    font-size: 1em;
+}
+button {
+    color: white;
+    font-size: 1.2em;
+    font-weight: bold;
+    background-color: black;
+    border: none;
+    border-radius: 5px;
+}
+ul {
+	padding: 0;
+}
+li {
+	list-style-type: none;
+	margins: 5px 5px 0 5px;
+}
+.iconButton {
+    width: 32px;
+    height: 32px;
+    border: none;
+    color: white;
+}
+.iconButton:disabled {
+    opacity: 0.5;
+}
+.dialog {
+	position: fixed;
+	left: 50px;
+	top: 50px;
+	padding: 5px;
+	border: 3px solid #666;
+	border-radius: 10px;
+	display: none;
+	color: black;
+	background-color: #EEE;
+	z-index: 10;
+}
+.layerChooser {
+	margin: 0 5px 0 0;
+	width: 16px;
+	height: 16px;
+}
+.layerVisible {
+	width: 16px;
+	height: 16px;
+	float: right;
+}
+.layerName {
+	width: 120px;
+	height: 16px;
+}
+.nameField {
+    width: 240px;
+    border: none;
+}
+.setChoice {
+	width: 16px;
+	height: 16px;
+	float: right;
+}
+.spin90 {
+    transform: rotate(90deg);
+}
+.spin180 {
+    transform: rotate(180deg);
+}
+.spin270 {
+    transform: rotate(270deg);
+}
+#graphic {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background-color: silver;
+	pointer-events: auto;
+	touch-action: none;
+	-webkit-touch-action: none;
+	mouse-events: none;
+	-webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+#tools {
+    position: fixed;
+    left: 6px;
+    top: 48px;
+    width: 32px;
+    border: none;
+    border-radius: 3px;
+    background-color: #ffffff80;
+    display: block;
+    z-index: 10;
+}
+#editTools {
+    position: fixed;
+    left: 6px;
+    top: 48px;
+    width: 32px;
+    border: none;
+    border-radius: 3px;
+    background-color: #ffffff80;
+    display: none;
+    z-index: 11;
+}
+#info {
+    position: fixed;
+    top: -50px;
+    left: 48px;
+    right: 0;
+    height: 50px;
+    font-size: 1em;
+    color: black;
+    background-color: #ffffff80;
+    z-index: 10;
+    display: block;
+    overflow: hidden;
+}
+#layerChooser {
+	left: 250px;
+}
+/*
+#spinPanel {
+    display: none;
+}
+*/
+#checks {
+    position: fixed;
+    left: 6px;
+    top: 4px;
+    width: 32px;
+    height: 32px;
+    background-image: url('svg/checks.svg');
+    z-index: 10;
+}
+#fill {
+    position: fixed;
+    left: 6px;
+    top: 4px;
+    width: 32px;
+    height: 32px;
+    background: gray;
+    opacity: 0.5;
+    border: none;
+    z-index: 11;
+}
+#line {
+	position: fixed;
+    left: 6px;
+    top: 4px;
+    width: 32px;
+    height: 32px;
+    border-bottom-style: solid;
+    border-width: 0.25mm;
+    border-color: black;
+    background: none;
+    z-index: 12;
+}
+#undoButton {
+    position: fixed;
+    left:6px;
+    top: 4px;
+    background: url(svg/undo.svg) center center no-repeat;
+    z-index: 12;
+    display: none;
+}
+#paper {
+    position: absolute;
+	left: 0;
+	top: 0;
+	background-color: #CCC;
+    z-index: 0;
+}
+#svg {
+    position: absolute;
+	left: 0;
+	top: 0;
+    z-index: 2;
+}
+#guides {
+    display: none;
+}
+#datumSet {
+    display: none;
+}
+#layer {
+	position: absolute;
+	top: 2px;
+	left: 8px;
+	color: white;
+	font-size: 20pt;
+	font-weight: bold;
+	z-index: 5;
+}
+#layersButton {
+	background: url(svg/layers.svg) center center no-repeat;
+}
+#docButton {
+    background: url(svg/document.svg) center center no-repeat;
+}
+#zoomInButton {
+    background: url(svg/zoomin.svg) center center no-repeat;
+}
+#zoomOutButton {
+    background: url(svg/zoomout.svg) center center no-repeat;
+}
+#extentsButton {
+    background: url(svg/extents.svg) center center no-repeat;
+}
+#panButton {
+    background: url(svg/pan.svg) center center no-repeat;
+}
+#curveButton {
+    background: url(svg/curve.svg) center center no-repeat;
+}
+#lineButton {
+    background: url(svg/line.svg) center center no-repeat;
+}
+#boxButton {
+    background: url(svg/box.svg) center center no-repeat;
+}
+#ovalButton {
+    background: url(svg/oval.svg) center center no-repeat;
+}
+#arcButton {
+    background: url(svg/arc.svg) center center no-repeat;
+}
+#textButton {
+    background: url(svg/text.svg) center center no-repeat;
+}
+#dimButton {
+    background: url(svg/dimension.svg) center center no-repeat;
+}
+#setButton {
+    background: url(svg/set.svg) center center no-repeat;
+}
+#imageButton {
+	background: url(svg/image.svg) center center no-repeat;
+}
+#addButton {
+    background: url(svg/add.svg) center center no-repeat;
+}
+#deleteButton {
+    background: url(svg/cross.svg) center center no-repeat;
+}
+#forwardButton {
+    background: url(svg/up.svg) center center no-repeat;
+}
+#backButton {
+    background: url(svg/up.svg) center center no-repeat;
+    transform: rotate(180deg);
+}
+#moveButton {
+    background: url(svg/move.svg) center center no-repeat;
+}
+#spinButton {
+    background: url(svg/spin.svg) center center no-repeat;
+}
+#flipButton {
+    background: url(svg/flip.svg) center center no-repeat;
+}
+#alignButton {
+    background: url(svg/align.svg) center center no-repeat;
+}
+#copyButton {
+    background: url(svg/copy.svg) center center no-repeat;
+}
+#doubleButton {
+    background: url(svg/double.svg) center center no-repeat;
+}
+#repeatButton {
+    background: url(svg/repeat.svg) center center no-repeat;
+}
+#filletButton {
+    background: url(svg/roundbox.svg) center center no-repeat;
+}
+#anchorButton {
+    background: url(svg/anchor.svg) center center no-repeat;
+}
+#joinButton {
+    background: url(svg/set.svg) center center no-repeat;
+}
+#spin {
+    width: 2em;
+}
+#lineColor {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #CCCCCC;
+    vertical-align: bottom;
+    background-color: black;
+}
+#fillColor {
+    width: 24px;
+    height: 24px;
+    border: 1px solid #CCCCCC;
+    vertical-align: bottom;
+    background: white;
+}
+#colorMenu {
+	position: fixed;
+    top: 50px;
+    left: 100px;
+    display: none;
+}
+#patternMenu {
+	width: 192px;
+	height: 192px;
+	background: white url('patterns.png') no-repeat center;
+}
+#text {
+    width: 200px;
+}
+#dimDialog {
+    left: 8px;
+}
+#setDialog {
+    left: 8px;
+}

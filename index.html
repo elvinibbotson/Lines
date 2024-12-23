@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Hockney - simple drawing app</title>
+    <title>Lines - simple drawing app</title>
     <meta name="description" content="scale drawings | simple CAD app | installable PWA">
     <meta name="robots" content="index nofollow">
-    <meta name="keywords" content="CAD, drawing, design, scale drawing, building, PWA, app">
+    <meta name="keywords" content="CAD, drawing, design, scale drawing, PWA, app">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta name="theme-color" content="#333333">
-	<title>Hockney</title>
-	<link rel="stylesheet" type="text/css" href="hockneyStyle.css">
+	<title>Lines</title>
+	<link rel="stylesheet" type="text/css" href="LinesStyle.css">
   	<link rel="manifest" href="manifest.json">
-  	<meta name="application-name" content="hockney">
+  	<meta name="application-name" content="Lines">
 </head>
 <body>
     <div id='graphic' draggable='false'>
@@ -86,7 +86,6 @@
 		            <line class='blue' id='blueRadius' x1='0' y1='0' x2='-10' y2='-10' marker-end='url(#arcArrows)' stroke='blue' fill='none'/>
 		            <line class='blue' id='blueDim' x1='0' y1='0' x2='-10' y2='-10' marker-start='url(#dimStart)' marker-end='url(#dimEnd)' stroke='blue' stroke-width='0.25' fill='none'/>
                 </g>
-		        
 		    </g>
 		    </svg>
 		</div>
@@ -203,8 +202,7 @@
     			
     		</li>
     	</ul>
-    	<input type='checkbox' id='stacked'>stack layers
-    </div>
+    	stack layers<input type='checkbox' id='stacked' class='layerVisible'>
     </div>
     <div id='docDialog' class='dialog'>
         <p><b>DRAWING:</b> <span id='drawingName'></span></p>
@@ -287,18 +285,17 @@
         <label for='oblique'>oblique</label>
     </div>
     <div id='setDialog' class='dialog'>
-        <p>select a set</p>
+        <b>SETS</b>
         <p><select id='setList'>
             <option onclick='prompt("select a set");' value=null>select a set</option>
         </select></p>
     </div>
     <div id='imageDialog' class='dialog'>
-    	<p>select an image</p>
+    	<b>IMAGES</b>
         <p><select id='imageList'>
             <option onclick='prompt("select a set");' value=null>select an image</option>
         </select></p>
     </div>
-    <div id='hiddenImage'><img id='preview' src='#'></div>
     <div id='stylesDialog' class='dialog'>
         <p>line 
         <select id='lineType'>
@@ -359,9 +356,13 @@
         </select>
         </p>
     </div>
+    <div id='textDialog' class='dialog'>
+        <p><button id='textOKbutton'>TEXT</button></p>
+        <textarea id='text' rows='5' cols='100'></textarea>
+    </div>
     <div id='patternMenu' class='dialog'></div>
     <div id='removeDialog' class='dialog'>
-        <button id='confirmRemove'>REMOVE</button>
+        <button id='confirmRemove'>DELETE</button>
         <p>selected element(s)?</p>
     </div>
     <div id='moveDialog' class='dialog'>
@@ -474,10 +475,6 @@
     		<rect id='#505' x='275' y='150' width='25' height='25' stroke='none' fill='#505'/>
     	</svg>
     </div>
-    <div id='textDialog' class='dialog'>
-        <p><button id='textOKbutton'>TEXT</button></p>
-        <textarea id='text' rows='5' cols='100'></textarea>
-    </div>
-	<script src="hockneyScript.js" async></script>
+	<script src="LinesScript.js" async></script>
 </body>
 </html>

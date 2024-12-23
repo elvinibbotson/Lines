@@ -1,16 +1,16 @@
 {
-  "name": "Hockney PWA",
-  "short_name": "Hockney",
+  "name": "Lines PWA",
+  "short_name": "Lines",
   "version": "1.1",
   "icons": [
 	{
-		"src": "hockney512.png",
+		"src": "Lines.png",
 		"sizes": "512x512",
 		"type": "image/png",
 		"purpose": "any maskable"
 	}
   ],
-  "start_url": "/Hockney/",
+  "start_url": "/Lines/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "white",
