@@ -304,6 +304,10 @@
             <option value='dashed'>dashed</option>
             <option value='dotted'>dotted</option>
         </select>
+        <select id='lineStyle'>
+        	<option value='square' selected>square</option>
+        	<option value='round'>round</option>
+        </select>
         <select id='penSelect'>
             <option value='0.25' selected>0.25mm</option>
             <option value='0.5'>0.5mm</option>
@@ -312,13 +316,6 @@
         </select>
         </p>
         <p>text 
-        <select id='textSize'>
-            <option value=3.5>7pt</option>
-            <option value=5 selected>10pt</option>
-            <option value=7>14pt</option>
-            <option value=10>20pt</option>
-            <option value=14>28pt</option>
-        </select>
         <select id='textFont'>
             <option value='sans-serif'>sans</option>
             <option value='serif'>serif</option>
@@ -329,6 +326,13 @@
             <option value='fine' selected>fine</option>
             <option value='bold'>bold</option>
             <option value='italic'>italic</option>
+        </select>
+        <select id='textSize'>
+            <option value=3.5>7pt</option>
+            <option value=5 selected>10pt</option>
+            <option value=7>14pt</option>
+            <option value=10>20pt</option>
+            <option value=14>28pt</option>
         </select>
         <img id='lineColor'/>
         </p>
@@ -366,13 +370,13 @@
         <p>selected element(s)?</p>
     </div>
     <div id='moveDialog' class='dialog'>
-        <button id='confirmMove'>MOVE</button>
+        <button id='confirmMove'>MOVE</button> <button class='clearButton' onclick='clearDialog("move")'></button>
         <p><input type='number' id='moveRight'/><img src='svg/up.svg' class='spin90'/>
         <input type='number' id='moveDown'/><img src='svg/up.svg' class='spin180'/></p>
         <p>...or <input type='number' id='moveDist'/> @ <input type='number' id='moveAngle'/> &deg;</p>
     </div>
     <div id='spinDialog' class='dialog'>
-        <button id='confirmSpin'>SPIN</button>
+        <button id='confirmSpin'>SPIN</button> <button class='clearButton' onclick='clearDialog("spin")'></button>
         <p>clockwise <input type='number' id='spinAngle'/>&deg;</p>
     </div>
     <div id='flipDialog' class='dialog'>
@@ -390,12 +394,12 @@
         </div>
     </div>
     <div id='doubleDialog' class='dialog'>
-        <button id='confirmDouble'>DOUBLE</button>
+        <button id='confirmDouble'>DOUBLE</button> <button class='clearButton' onclick='clearDialog("double")'></button>
         <p><input type='number' id='offset'/>mm right/outside
         <p>negative offsets are left/inside</p>
     </div>
     <div id='repeatDialog' class='dialog'>
-        <button id='confirmRepeat'>REPEAT</button>
+        <button id='confirmRepeat'>REPEAT</button> <button class='clearButton' onclick='clearDialog("repeat")'></button>
         <p><input type='number' id='countH'/>@<input type='number' id='distH'/>mm<img src='svg/up.svg' class='spin90'/></p>
         <p><input type='number' id='countV'/>@<input type='number' id='distV'/>mm<img src='svg/up.svg' class='spin180'/></p>
     </div>

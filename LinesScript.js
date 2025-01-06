@@ -47,6 +47,7 @@ var blueline=null; // bluePolyline
 var set=null; // current set
 var setID=null; // id of current set
 var lineType='solid'; // default styles
+var lineStyle='square;'
 var lineColor='black';
 var pen=0.25; // 0.25mm at 1:1 scale - increase for smaller scales (eg.12.5 at 1:50 scale)
 var fillType='solid';
@@ -637,16 +638,16 @@ getElement('forwardButton').addEventListener('click',function() {
 getElement('moveButton').addEventListener('click',function() {
     console.log('move '+type(element));
     if(type(element)=='dim') return; // cannot move dimensions
-    getElement('moveRight').value=getElement('moveDown').value=getElement('moveDist').value=getElement('moveAngle').value=0;
+    // getElement('moveRight').value=getElement('moveDown').value=getElement('moveDist').value=getElement('moveAngle').value=0;
     showDialog('textDialog',false);
     showDialog('moveDialog',true);
 });
 getElement('confirmMove').addEventListener('click',function() {
     // read move parameters and adjust element
-    var moveX=parseInt(getElement('moveRight').value);
-    var moveY=parseInt(getElement('moveDown').value);
-    var moveD=parseInt(getElement('moveDist').value);
-    var moveA=parseInt(getElement('moveAngle').value);
+    var moveX=getValue('moveRight'); //parseInt(getElement('moveRight').value);
+    var moveY=getValue('moveDown'); //parseInt(getElement('moveDown').value);
+    var moveD=getValue('moveDist'); //parseInt(getElement('moveDist').value);
+    var moveA=getValue('moveAngle'); //parseInt(getElement('moveAngle').value);
     console.log('move '+moveX+','+moveY+' '+moveD+'@'+moveA);
     if((moveD!=0)&&(moveA!=0)) { // polar coordinates - convert to cartesian
         moveA-=90;
@@ -671,23 +672,22 @@ getElement('confirmMove').addEventListener('click',function() {
         move(element,moveX,moveY);
     }
     showDialog('moveDialog',false);
-    // DONE BY re-member - getElement('undoButton').style.display='block';
     cancel();
 });
 getElement('spinButton').addEventListener('click',function() {
-    getElement('spinAngle').value=0;
+    // getElement('spinAngle').value=0;
     showDialog('spinDialog',true);
 });
 getElement('confirmSpin').addEventListener('click',function() {
-    var spin=Number(getElement('spinAngle').value);
+    var spin=getValue('spinAngle'); // Number(getElement('spinAngle').value);
     if(selection.length<1) selection.push(elID);
     console.log('spin '+selection.length+' elements by '+spin+' degrees');
     re('member');
     var axis=null;
     if(anchor) { // spin around an anchor
         axis={};
-        axis.x=parseInt(getElement('anchor').getAttribute('cx'));
-        axis.y=parseInt(getElement('anchor').getAttribute('cy'));
+        axis.x=parseInt(getElement('anchor').getAttribute('x'));
+        axis.y=parseInt(getElement('anchor').getAttribute('y'));
     }
     else if(selection.length>1) { // spin around mid-point of multiple elements
         var el=getElement(selection[0]);
@@ -745,14 +745,18 @@ getElement('confirmSpin').addEventListener('click',function() {
         updateGraph(elID,['spin',netSpin]);
         setTransform(element);
         if(axis) { // reposition elements, spinning around axis
-            console.log('spin element '+elID+' around anchor at '+axis.x+','+axis.y);
-            dx=axis.x-ox;
-            dy=axis.y-oy;
+            console.log('spin element '+elID+' around '+axis.x+','+axis.y);
+            dx=ox-axis.x;
+            dy=oy-axis.y;
             var d=Math.sqrt(dx*dx+dy*dy);
             var a=Math.atan(dy/dx);
+            if(dx<0) spin+=180;
             a+=(spin*Math.PI/180);
-            dx+=(d*Math.cos(a));
-            dy+=(d*Math.sin(a));
+            console.log('spin is '+spin+'; a is '+a);
+            x=axis.x+d*Math.cos(a);
+            y=axis.y+d*Math.sin(a);
+            dx=x-ox;
+            dy=y-oy;
             console.log('shift '+dx+','+dy);
             move(element,dx,dy);
         }
@@ -825,6 +829,7 @@ getElement('flipOptions').addEventListener('click',function() {
                 refreshNodes(el);
                 break;
             case 'box':
+            	
                 var spin=parseInt(el.getAttribute('spin'));
                 if(spin!=0) {
                         spin*=-1;
@@ -834,13 +839,24 @@ getElement('flipOptions').addEventListener('click',function() {
                     }
                 break;
             case 'oval':
+            	if(opt<1) {
+            		var dx=Number(el.getAttribute('cx'))-axis.x;
+            		x=axis.x-dx
+            		el.setAttribute('cx',x);
+            	}
+            	else {
+            		var dy=Number(el.getAttribute('cy'))-axis.y;
+            		y=axis.y-dy;
+            		el.setAttribute('cy',y);
+            	}
                 var spin=parseInt(el.getAttribute('spin'));
                 if(spin!=0) {
-                        spin*=-1;
-                        el.setAttribute('spin',spin);
-                        setTransform(el);
-                        updateGraph(elID['spin',spin]);
-                    }
+                    spin*=-1;
+                    el.setAttribute('spin',spin);
+                    setTransform(el);
+                    // updateGraph(elID['spin',spin]);
+                }
+                updateGraph(elID['cx',x,'cy',y,'spin',spin]);
                 break;
             case 'arc':
                 var d=el.getAttribute('d');
@@ -993,10 +1009,13 @@ getElement('copyButton').addEventListener('click',function() {
 		element=getElement(selection[i]);
 		var g={};
 		g.type=type(element);
-		if(g.type!='stamp') { // stamps don't have style
+		g.layer=layer;
+		if(g.type!='set') { // sets don't have style
                 g.stroke=element.getAttribute('stroke');
                 g.lineW=element.getAttribute('stroke-width');
-                g.lineStyle=getLineStyle(element);
+                g.lineType=getLineType(element);
+                if(element.getAttribute('stroke-linecap')=='round') graph.lineStyle='round';
+    			else g.lineStyle='square';
                 var val=element.getAttribute('fill');
                 if(val.startsWith('url')) {
                 	var p=getElement('pattern'+element.id);
@@ -1022,9 +1041,9 @@ getElement('copyButton').addEventListener('click',function() {
                 case 'line':
                     g.points='';
                     for(var p=0;p<element.points.length;p++) {
-                        g.points+=element.points[p].x;
-                        g.points+=element.points[p].y;
+                        g.points+=element.points[p].x+','+element.points[p].y+' ';
                     }
+                    console.log('points: '+g.points);
                     break;
                 case 'box':
                     g.x=Number(element.getAttribute('x'));
@@ -1085,7 +1104,7 @@ getElement('doubleButton').addEventListener('click',function() {
 });
 getElement('confirmDouble').addEventListener('click',function() {
     console.log('DOUBLE');
-    var d=parseInt(getElement('offset').value);
+    var d=getValue('offset'); // parseInt(getElement('offset').value);
     console.log('double offset: '+d+'mm');
     showDialog('doubleDialog',false);
     var graph={}; // initiate new element
@@ -1274,25 +1293,17 @@ getElement('confirmDouble').addEventListener('click',function() {
             graph.spin=element.getAttribute('spin');
             break;
         case 'box':
-            x=parseInt(element.getAttribute('x'));
-            y=parseInt(element.getAttribute('y'));
-            w=parseInt(element.getAttribute('width'));
-            h=parseInt(element.getAttribute('height'));
+            x=Number(element.getAttribute('x'));
+            y=Number(element.getAttribute('y'));
+            w=Number(element.getAttribute('width'));
+            h=Number(element.getAttribute('height'));
             if((d<0)&&((w+2*d<1)||(h+2*d<1))) {
                 alert('cannot fit inside');
                 return;
             }
-            graph.spin=element.getAttribute('spin'); // IF HAS SPIN NEED TO SPIN AROUND ORIGINAL BOX ORIGIN
-            if(graph.spin!=0) { // spin around orignal box anchor
-                var r=Math.sqrt(2)*d;
-                var s=(45-graph.spin)*Math.PI/180; // radians
-                graph.x=x-(r*Math.sin(s));
-                graph.y=y-(r*Math.cos(s));
-            }
-            else {
-                graph.x=x-d;
-                graph.y=y-d;
-            }
+            graph.x=x-d;
+            graph.y=y-d;
+            graph.spin=element.getAttribute('spin');
             graph.width=w+2*d;
             graph.height=h+2*d;
             var n=parseInt(element.getAttribute('rx'));
@@ -1302,7 +1313,6 @@ getElement('confirmDouble').addEventListener('click',function() {
             graph.radius=n;
             graph.layer=layer;
             console.log('double as '+n);
-            // ADD STYLING AFTER switch SECTION?
             break;
         case 'oval':
             x=parseInt(element.getAttribute('cx'));
@@ -1349,7 +1359,10 @@ getElement('confirmDouble').addEventListener('click',function() {
     }
     graph.stroke=element.getAttribute('stroke');
     graph.lineW=element.getAttribute('stroke-width');
-    graph.lineStyle=getLineStyle(element);
+    if(element.getAttribute('stroke-linecap')=='round') graph.lineStyle='round';
+    else graph.lineStyle='square';
+    graph.lineStyle=element.getAttribute('')
+    graph.lineType=getLineType(element);
     graph.fillType=element.getAttribute('fillType');
     graph.fill=element.getAttribute('fill');
     n=element.getAttribute('fill-opacity');
@@ -1360,15 +1373,15 @@ getElement('confirmDouble').addEventListener('click',function() {
 getElement('repeatButton').addEventListener('click',function() {
     if(type(element)=='dim') return; // cannot move dimensions
     showDialog('textDialog',false);
-    getElement('countH').value=getElement('countV').value=1;
-    getElement('distH').value=getElement('distV').value=0;
+    // getElement('countH').value=getElement('countV').value=1;
+    // getElement('distH').value=getElement('distV').value=0;
     showDialog('repeatDialog',true);
 });
 getElement('confirmRepeat').addEventListener('click',function() {
-    var nH=parseInt(getElement('countH').value);
-    var nV=parseInt(getElement('countV').value);
-    var dH=parseInt(getElement('distH').value);
-    var dV=parseInt(getElement('distV').value);
+    var nH=getValue('countH'); // parseInt(getElement('countH').value);
+    var nV=getValue('countV'); // parseInt(getElement('countV').value);
+    var dH=getValue('distH'); // parseInt(getElement('distH').value);
+    var dV=getValue('distV'); // parseInt(getElement('distV').value);
     console.log(nH+' copies across at '+dH+'mm; '+nV+' copies down at '+dV+'mm');
     var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
     for(var item of selection) {
@@ -1385,6 +1398,7 @@ getElement('confirmRepeat').addEventListener('click',function() {
             		console.log('repeat '+g.type);
             		if((g.type!='set')&&(g.type!='image')) { // sets don't have style
                 		g.lineW=graph.lineW;
+                		g.lineType=graph.lineType;
                 		g.lineStyle=graph.lineStyle;
                 		g.stroke=graph.stroke;
                 		g.fillType=graph.fillType;
@@ -1618,7 +1632,7 @@ getElement('lineType').addEventListener('change',function() {
             	case 'dotted':
                 	val=w+' '+w;
         	}
-        	console.log('set element '+el.id+' line style to '+type);
+        	console.log('set element '+el.id+' line type to '+type);
         	el.setAttribute('stroke-dasharray',val);
         	val=el.getAttribute('stroke');
         	el.setAttribute('stroke',(type=='none')?'none':val);
@@ -1632,6 +1646,26 @@ getElement('lineType').addEventListener('change',function() {
     }
     getElement('line').style.borderBottomStyle=type;
 });
+getElement('lineStyle').addEventListener('change',function() {
+	var style=event.target.value;
+	if(selection.length>0) {
+		for (var i=0;i<selection.length;i++) {
+			var el=getElement(selection[i]);
+			console.log('set element '+el.id+' line style to '+style);
+			if(style=='round') {
+				el.setAttribute('stroke-linecap','round');
+				el.setAttribute('stroke-linejoin','round');
+			}
+			else {
+				el.setAttribute('stroke-linecap','butt');
+				el.setAttribute('stroke-linejoin','miter');
+			}
+		}
+	}
+	else { // change default line style
+		lineStyle=style;
+	}
+})
 getElement('penSelect').addEventListener('change',function() {
     var val=event.target.value;
     // NEW CODE...
@@ -2399,7 +2433,7 @@ function drag(event) {
             getElement('blueOval').setAttribute('cy',y0);
             getElement('blueOval').setAttribute('rx',w/2);
             getElement('blueOval').setAttribute('ry',h/2);
-            setSizes('box',null,w,h);
+            setSizes('oval',null,w,h);
             break;
         	/*
             w=Math.abs(x-x0);
@@ -2769,7 +2803,8 @@ getElement('graphic').addEventListener('pointerup',function(e) {
 	        graph.spin=0;
 	        graph.stroke=lineColor;
 	        graph.lineW=pen*scale;
-	        graph.lineStyle=lineType;
+	        graph.lineType=lineType;
+	        graph.lineStyle=lineStyle;
 	        if(lineType=='none') graph.lineStyle='solid'; // cannot have empty stroke
 	        graph.fillType='none';
 	        graph.fill=fillColor;
@@ -2808,7 +2843,8 @@ getElement('graphic').addEventListener('pointerup',function(e) {
 	            graph.spin=0;
 	            graph.stroke=lineColor;
 	            graph.lineW=(pen*scale);
-	            graph.lineStyle=lineType;
+	            graph.lineType=lineType;
+	        	graph.lineStyle=lineStyle;
 	            graph.fillType='none';
 	            graph.fill='none';
 	            graph.layer=layer;
@@ -2841,7 +2877,8 @@ getElement('graphic').addEventListener('pointerup',function(e) {
 	                graph.spin=0;
 	                graph.stroke=lineColor;
 	                graph.lineW=(pen*scale);
-	                graph.lineStyle=lineType;
+	                graph.lineType=lineType;
+	        		graph.lineStyle=lineStyle;
 	                graph.fillType=fillType;
 	                graph.fill=fillColor;
 	                graph.layer=layer;
@@ -2880,7 +2917,8 @@ getElement('graphic').addEventListener('pointerup',function(e) {
 	        graph.stroke=lineColor;
 	        if(lineType=='none') graph.stroke='none';
 	        graph.lineW=(pen*scale);
-	        graph.lineStyle=lineType;
+	        graph.lineType=lineType;
+	        graph.lineStyle=lineStyle;
 	        graph.fillType=fillType;
 	        graph.fill=fillColor;
 	        graph.layer=layer;
@@ -2901,7 +2939,8 @@ getElement('graphic').addEventListener('pointerup',function(e) {
 	        graph.stroke=lineColor;
 	        if(lineType=='none') graph.stroke='none';
 	        graph.lineW=pen*scale;
-	        graph.lineStyle=lineType;
+	        graph.lineType=lineType;
+	        graph.lineStyle=lineStyle;
 	        graph.fillType=fillType;
 	        graph.fill=fillColor;
 	        graph.opacity=opacity;
@@ -2921,7 +2960,8 @@ getElement('graphic').addEventListener('pointerup',function(e) {
 	        graph.ry=h/2;
 	        graph.spin=0;
 	        graph.stroke=lineColor
-	        graph.lineStyle=lineType;
+	        graph.lineType=lineType;
+	        graph.lineStyle=lineStyle;
 	        graph.lineW=pen*scale;
 	        graph.fillType=fillType;
 	        graph.fill=fillColor;
@@ -2974,7 +3014,8 @@ getElement('graphic').addEventListener('pointerup',function(e) {
 	        graph.sweep=arc.sweep; // direction of arc - 1: clockwise, 0: anticlockwise
 	        graph.spin=0;
 	        graph.stroke=lineColor
-	        graph.lineStyle=lineType;
+	        graph.lineType=lineType;
+	        graph.lineStyle=lineStyle;
 	        graph.lineW=pen*scale;
 	        graph.fillType='none'; // arcs default to no fill
 	        graph.opacity=1;
@@ -3594,6 +3635,32 @@ function checkDims(el) {
         }
     }
 }
+function clearDialog(dialog) {
+	console.log('clear '+dialog+' dialog');
+	switch(dialog) {
+		case 'move':
+			getElement('moveRight').value=null;
+			getElement('moveDown').value=null;
+			getElement('moveDist').value=null;
+			getElement('moveAngle').value=null;
+			break;
+		case 'spin':
+			getElement('spinAngle').value=null;
+			break;
+		case 'double':
+			getElement('offset').value=null;
+			break;
+		case 'repeat':
+			getElement('countH').value=1;
+			getElement('distH').value=null;
+			getElement('countV').value=1;
+			getElement('distV').value=null;
+			break;
+		case 'fillet':
+			getElement('filletR').value=null;
+	}
+	
+}
 function curvePath(pts) {
 	console.log('get path for '+pts.length+' points');
 	var d='M'+pts[0].x+','+pts[0].y; // move to point 0
@@ -3634,7 +3701,6 @@ function download(content,fileName,contentType) {
 	a.href=URL.createObjectURL(file);
 	a.download=fileName;
 	a.click();
-	alert('file '+fileName+" saved to downloads folder");
 }
 function getAngle(x0,y0,x1,y1) {
     var dx=x1-x0;
@@ -3681,12 +3747,17 @@ function getBounds(el) {
 function getElement(el) {
 	return document.getElementById(el);
 }
-function getLineStyle(el) {
+function getLineType(el) {
     var lw=parseInt(el.getAttribute('stroke-width'));
     var dash=parseInt(el.getAttribute('stroke-dasharray'));
     if(dash>lw) return 'dashed';
     else if(dash==lw) return'dotted';
     else return 'solid';
+}
+function getValue(el) {
+	var val=parseInt(getElement(el).value);
+	if(!val) val=0;
+	return val;
 }
 function hint(text) {
     console.log('HINT '+text);
@@ -3842,14 +3913,16 @@ function makeElement(g) {
             el.setAttribute('points',g.points);
             el.setAttribute('stroke',g.stroke);
             el.setAttribute('stroke-width',g.lineW);
-            var dash=setLineStyle(g);
+            var dash=setLineType(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             el.setAttribute('spin',g.spin);
             console.log('curve points: '+g.points);
+            // console.log('path: '+curvePath(pointsArray(g.points)));
             console.log('path: '+curvePath(pointsArray(g.points)));
+            // el.setAttribute('d',curvePath(pointsArray(g.points)));el.setAttribute('d',curvePath(pointsArray(g.points)));
             el.setAttribute('d',curvePath(pointsArray(g.points)));
             if(g.spin!=0) setTransform(el); // apply spin MAY NOT WORK!!!
             nodes.push({'x':g.points[0].x,'y':g.points[0].y,'n':Number(g.id*10+0)});
@@ -3861,7 +3934,7 @@ function makeElement(g) {
             el.setAttribute('spin',g.spin);
             el.setAttribute('stroke',g.stroke);
             el.setAttribute('stroke-width',g.lineW);
-            var dash=setLineStyle(g);
+            var dash=setLineType(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
@@ -3890,7 +3963,7 @@ function makeElement(g) {
             el.setAttribute('spin',g.spin);
             el.setAttribute('stroke',g.stroke);
             el.setAttribute('stroke-width',g.lineW);
-            var dash=setLineStyle(g);
+            var dash=setLineType(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
@@ -3915,7 +3988,7 @@ function makeElement(g) {
             el.setAttribute('spin',g.spin);
             el.setAttribute('stroke',g.stroke);
             el.setAttribute('stroke-width',g.lineW);
-            var dash=setLineStyle(g);
+            var dash=setLineType(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
@@ -3938,7 +4011,7 @@ function makeElement(g) {
             el.setAttribute('spin',g.spin);
             el.setAttribute('stroke',g.stroke);
             el.setAttribute('stroke-width',g.lineW);
-            var dash=setLineStyle(g);
+            var dash=setLineType(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
@@ -3961,7 +4034,7 @@ function makeElement(g) {
             el.setAttribute('spin',g.spin);
             el.setAttribute('stroke',g.stroke);
             el.setAttribute('stroke-width',g.lineW);
-            var dash=setLineStyle(g);
+            var dash=setLineType(g);
             if(dash) el.setAttribute('stroke-dasharray',dash);
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
@@ -4095,7 +4168,15 @@ function makeElement(g) {
     	console.log('set style - fillType is '+g.fillType+'; fill is '+g.fill);
     	el.setAttribute('stroke',g.stroke);
 		el.setAttribute('stroke-width',g.lineW);
-		var dash=setLineStyle(g);
+		if(g.lineStyle=='round') {
+			el.setAttribute('stroke-linecap','round');
+			el.setAttribute('stroke-linejoin','round');
+		}
+		else {
+			el.setAttribute('stroke-linecap','butt');
+			el.setAttribute('stroke-linejoin','miter');
+		};
+		var dash=setLineType(g);
 		if(dash) el.setAttribute('stroke-dasharray',dash);
 		if(g.fillType.startsWith('pattern')) {
 			var n=Number(g.fillType.substr(7));
@@ -4275,7 +4356,7 @@ function re(op) { // op is 're-member' (memorise and show undo), 're-call' (rein
     else if(op=='call') for(var i=0;i<memory.length;i++) { // reinstate from memory
         var item=memory[i];
         console.log('reinstate item '+item.id);
-        prompt('UNDO');
+        // hint('UNDO');
         elID=item.id;
         var el=getElement(elID);
         console.log('reinstate '+elID);
@@ -4631,7 +4712,7 @@ function select(el,multiple) {
             	var points=el.points;
             	var n=points.length;
             	console.log('bounds: '+w+'x'+h+'mm; '+n+' points');
-            	setSizes('box',el.getAttribute('spin'),w,h,el.layer); // size of bounding box
+            	setSizes('box',el.getAttribute('spin'),w,h); // size of bounding box
             	// draw handles
             	var html="<use id='mover0' href='#mover' x='"+points[0].x+"' y='"+points[0].y+"'/>";
             	getElement('handles').innerHTML+=html; // circle handle moves whole element
@@ -4641,7 +4722,8 @@ function select(el,multiple) {
             }
             	getElement('bluePolyline').setAttribute('points',el.getAttribute('points'));
             	getElement('guides').style.display='block';
-            	hint((mode=='shape')?'SHAPE':'LINE');
+            	console.log('type: '+type(el)+'; layer: '+el.getAttribute('layer'));
+            	showInfo(true,(type(el)=='shape')?'SHAPE':'LINE',el.getAttribute('layer'));
             	node=0; // default anchor node
             	mode='pointEdit';
             	break;
@@ -4806,16 +4888,16 @@ function select(el,multiple) {
 function setButtons() {
     var n=selection.length;
     console.log('set buttons for '+n+' selected elements');
-    var active=[3,9,21]; // active buttons - remove, move and repeat always active
+    var active=[3,9,11,13,17,21]; // active buttons - remove, move, spin, flip, copy, repeat and anchor always active
     // childNodes of editTools are... 0:add 1:remove 2:forward 3:back 4:move 5:spin 6:flip 7:align 8:copy 9:double 10:repeat 11:fillet 12: anchor 13:join
     if(n>1) { // multiple selection
-        if(anchor) { // spin and flip and join active if anchor available for multiple selection
-            active.push(11);
-            active.push(13);
+        if(anchor) { // join active if anchor available for multiple selection
+            // active.push(11); // spin
+            // active.push(13); // flip
             active.push(27);
         }
         active.push(15); // align and anchor active for multiple selection
-        active.push(25);
+        // active.push(25); // anchor
     }
     else { // single element selected
         var t=type(getElement(selection[0]));
@@ -4888,10 +4970,9 @@ function setLayerVisibility() {
 	// console.log('layers JSON: '+json);
 	window.localStorage.setItem('layers',json);
 }
-function setLineStyle(g) {
-    if(g.lineStyle=='dashed') return (4*g.lineW)+" "+(4*g.lineW);
-    else if(g.lineStyle=='dotted') return g.lineW+" "+g.lineW;
-    // else return null;
+function setLineType(g) {
+    if(g.lineType=='dashed') return (4*g.lineW)+" "+(4*g.lineW);
+    else if(g.lineType=='dotted') return g.lineW+" "+g.lineW;
 }
 function setSizes(mode,spin,p1,p2,p3,p4) {
     console.log('setSizes - '+mode+','+p1+','+p2+','+p3+','+p4+' spin '+spin);
@@ -4938,7 +5019,7 @@ function setStyle() {
     }
     else { // show styles for element el
     	console.log('set style for element '+el.id);
-        val=getLineStyle(el);
+        val=getLineType(el);
         getElement('lineType').value=val;
         getElement('line').style.borderBottomStyle=val;
         val=el.getAttribute('stroke-width');

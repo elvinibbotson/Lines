@@ -70,6 +70,16 @@ li {
 	background-color: #EEE;
 	z-index: 10;
 }
+.clearButton {
+	margin: 2px;
+	border: none;
+	border-radius: 0;
+	width: 24px;
+	height: 24px;
+	float: right;
+	background-color: white;
+	background-image: url('svg/clear.svg');
+}
 .layerChooser {
 	margin: 0 5px 0 0;
 	width: 16px;
@@ -156,11 +166,6 @@ li {
 #layerChooser {
 	left: 250px;
 }
-/*
-#spinPanel {
-    display: none;
-}
-*/
 #checks {
     position: fixed;
     left: 6px;
