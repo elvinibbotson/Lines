@@ -47,7 +47,7 @@ var blueline=null; // bluePolyline
 var set=null; // current set
 var setID=null; // id of current set
 var lineType='solid'; // default styles
-var lineStyle='square;'
+var lineStyle='square';
 var lineColor='black';
 var pen=0.25; // 0.25mm at 1:1 scale - increase for smaller scales (eg.12.5 at 1:50 scale)
 var fillType='solid';
@@ -55,7 +55,7 @@ var fillColor='white';
 var opacity='1';
 var blur=0;
 var textSize=5; // default text size
-var textFont='sans'; // sans-serif font
+var textFont='sans-serif'; // sans-serif font
 var textStyle='fine'; // normal text
 var currentDialog=null;
 var zoomLimit=1; // controls minimum zoom - setting of 2 for minimum zoom of 1
@@ -437,7 +437,7 @@ getElement('textOKbutton').addEventListener('click',function() {
         updateGraph(element.id,['text',text],true);
     }
     else {
-        console.log('add text '+text);
+        console.log('add text '+text+' - '+textFont+','+textStyle+','+textSize);
         var graph={}
 	    graph.type='text';
 	    graph.text=text;
@@ -799,7 +799,6 @@ getElement('flipOptions').addEventListener('click',function() {
         axis.y=parseInt(getElement('anchor').getAttribute('y'));
     }
     else { // flip in-situ around mid-point
-        // copy=false;
         axis.x=(minX+maxX)/2;
         axis.y=(minY+maxY)/2;
     }
@@ -829,7 +828,6 @@ getElement('flipOptions').addEventListener('click',function() {
                 refreshNodes(el);
                 break;
             case 'box':
-            	
                 var spin=parseInt(el.getAttribute('spin'));
                 if(spin!=0) {
                         spin*=-1;
@@ -1720,7 +1718,8 @@ getElement('textFont').addEventListener('change',function() {
         	}
     	}
     }
-    textSize=val; // change default text font
+    else textFont=val; // change default text font
+    getElement('textFont').value=val;
 });
 getElement('textStyle').addEventListener('change',function() {
     var val=event.target.value;
@@ -1777,7 +1776,7 @@ getElement('fillType').addEventListener('change',function() {
     else { // change default fillType type
         fillType=type;
     }
-    getElement('fill').style.background=(type=='none')?'none':fillCol;
+    getElement('fill').style.background=(type=='none')?'none':fillColor;
 });
 getElement('fillColor').addEventListener('click',function() {
 	console.log('show colour menu');
@@ -4888,7 +4887,7 @@ function select(el,multiple) {
 function setButtons() {
     var n=selection.length;
     console.log('set buttons for '+n+' selected elements');
-    var active=[3,9,11,13,17,21]; // active buttons - remove, move, spin, flip, copy, repeat and anchor always active
+    var active=[3,9,11,13,17,25]; // active buttons - remove, move, spin, flip, copy and anchor always active
     // childNodes of editTools are... 0:add 1:remove 2:forward 3:back 4:move 5:spin 6:flip 7:align 8:copy 9:double 10:repeat 11:fillet 12: anchor 13:join
     if(n>1) { // multiple selection
         if(anchor) { // join active if anchor available for multiple selection
@@ -4900,6 +4899,7 @@ function setButtons() {
         // active.push(25); // anchor
     }
     else { // single element selected
+    	active.push(19,21); // double and repeat only for single selection
         var t=type(getElement(selection[0]));
         // console.log('selected element is '+t);
         if((t=='line')||(t=='shape')) active.push(1); // can add points to selected line/shape
@@ -5005,63 +5005,86 @@ function setSizes(mode,spin,p1,p2,p3,p4) {
 }
 function setStyle() {
 	console.log('setStyle: '+selection.length+' items selected');
-	var el=(selection.length>0)?getElement(selection[0]):null;
-    if(!el ||(type(el)=='set')||(type(el)=='dim')||(type(el)=='image')) { // no element/set/dimension - show default styles
-        getElement('lineType').value=lineType;
-        getElement('line').style.borderBottomStyle=lineType;
-        getElement('line').style.borderWidth=pen+'mm';
-        getElement('lineColor').style.backgroundColor=lineColor;
-        getElement('line').style.borderColor=lineColor;
-        getElement('fill').style.backgroundColor=fillColor;
-        getElement('fill').style.opacity=opacity;
-        getElement('patternOption').disabled=true;
-        getElement('opacity').value=opacity;
+	// default style settings
+    getElement('lineType').value=lineType;
+    getElement('line').style.borderBottomStyle=lineType;
+    getElement('line').style.borderWidth=pen+'mm';
+    getElement('lineStyle').value=lineStyle;
+    getElement('penSelect').value=pen;
+    getElement('lineColor').style.backgroundColor=lineColor;
+    getElement('line').style.borderColor=lineColor;
+    console.log('default text: '+textFont+','+textStyle+','+textSize+','+lineColor);
+    getElement('textFont').value=textFont;
+    getElement('textStyle').value=textStyle;
+    getElement('textSize').value=textSize;
+    getElement('fillType').value=fillType;
+    getElement('fillColor').style.backgroundColor=fillColor;
+    if(fillType=='solid') getElement('fill').style.backgroundColor=fillColor;
+    getElement('fill').style.opacity=opacity;
+    getElement('patternOption').disabled=true;
+    getElement('opacity').value=opacity;
+    // set styles to suit selected element?
+    var el=(selection.length==1)?getElement(selection[0]):null;
+    if(!el) return; // no selection or multiple selection
+    var t=type(el);
+    if((t=='set')||(t=='dim')||(t=='image')) return; 
+    console.log('set style for element '+el.id);
+    val=getLineType(el);
+    getElement('lineType').value=val;
+    getElement('line').style.borderBottomStyle=val;
+    val=el.getAttribute('stroke-linecap');
+    console.log('element lineStyle '+val+'; current lineStyle: '+getElement('lineStyle').value);
+    if(val) {
+    	if(val=='butt') getElement('lineStyle').value='square';
+    	else getElement('lineStyle').value='round';
     }
-    else { // show styles for element el
-    	console.log('set style for element '+el.id);
-        val=getLineType(el);
-        getElement('lineType').value=val;
-        getElement('line').style.borderBottomStyle=val;
-        val=el.getAttribute('stroke-width');
-        if(val) {
-            getElement('line').style.borderWidth=(val/scaleF)+'px';
-            val=Math.floor(val/4);
-            if(val>3) val=3;
-            console.log('select option '+val);
-            getElement('penSelect').options[val].selected=true;;
-        }
-        val=el.getAttribute('stroke');
-        if(val) {
+    	// getElement(lineStyle).value=(val=='butt')?'square':'round';
+    val=el.getAttribute('stroke-width');
+    if(val) {
+        getElement('line').style.borderWidth=(val/scaleF)+'px';
+        val=Math.floor(val/4);
+        if(val>3) val=3;
+        console.log('select option '+val);
+        getElement('penSelect').options[val].selected=true;;
+    }
+    val=el.getAttribute('stroke');
+    if(val) {
+        getElement('lineColor').style.backgroundColor=val;
+        getElement('line').style.borderColor=val;
+    }
+    getElement('patternOption').disabled=false;
+    val=el.getAttribute('fillType');
+    console.log('fillType: '+val);
+    if(val.startsWith('url')) {
+    	getElement('fillType').value='pattern';
+    	getElement('fillCol').value=getElement('pattern'+el.id).firstChild.getAttribute('fill');
+    }
+    else if(val=='none') {
+    	getElement('fill').style.background='#00000000';
+    	getElement('fillType').value='none';
+    }
+    else {
+    	getElement('fillType').value='solid';
+    	val=el.getAttribute('fill');
+    	console.log('fill color: '+val);
+        if(type(el)=='text') {
             getElement('lineColor').style.backgroundColor=val;
-            getElement('line').style.borderColor=val;
-        }
-        getElement('patternOption').disabled=false;
-        val=el.getAttribute('fillType');
-        console.log('fillType: '+val);
-        if(val.startsWith('url')) {
-        	getElement('fillType').value='pattern';
-        	getElement('fillCol').value=getElement('pattern'+el.id).firstChild.getAttribute('fill');
-        }
-        else if(val=='none') {
-            getElement('fill').style.background='#00000000';
-            getElement('fillColor').style.backgroundColor='white';
-            getElement('opacity').value=0;
         }
         else {
-            if(type(el)=='text') {
-                getElement('lineColor').style.backgroundColor=val;
-            }
-            else {
-                getElement('fillColor').style.backgroundColor=val;
-                getElement('fill').style.background=val;
-            }
+            getElement('fillColor').style.backgroundColor=val;
+            getElement('fill').style.background=val;
         }
+    }
         val=el.getAttribute('fill-opacity');
         if(val) {
             getElement('opacity').value=val;
             getElement('fill').style.opacity=val;
         }
         if(type(el)=='text') {
+        	val=el.getAttribute('font-family');
+        	console.log('text font: '+val);
+        	if(!val || val=='undefined') val=textFont;
+        	if(val) getElement('textFont').value=val;
             val=el.getAttribute('font-size')/scale;
             console.log('text size: '+val);
             getElement('textSize').value=val;
@@ -5073,7 +5096,7 @@ function setStyle() {
             getElement('patternOption').disabled=true;
             getElement('patternOption').disabled=true;
         } 
-    }
+    // }
 }
 function setTransform(el) {
     console.log('set transform for element '+el.id);
