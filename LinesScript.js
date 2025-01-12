@@ -58,7 +58,7 @@ var textSize=5; // default text size
 var textFont='sans-serif'; // sans-serif font
 var textStyle='fine'; // normal text
 var currentDialog=null;
-var zoomLimit=1; // controls minimum zoom - setting of 2 for minimum zoom of 1
+// var zoomLimit=1; // controls minimum zoom - setting of 2 for minimum zoom of 1
 var sizes=['A4','A5','21cm square','15x10cm','18x13cm','20x15cm','25x20cm'];
 var widths=[297,210,210,150,180,200,250.210,148,210,100,130,150,200];
 var heights=[210,148,210,100,130,150,200,297,210,210,150,180,200,250];
@@ -374,35 +374,26 @@ getElement('confirmSave').addEventListener('click',async function() {
 getElement('zoomInButton').addEventListener('click',function() {
     zoom*=2;
     console.log('zoom in to '+zoom);
-    w=Math.round(dwg.w*scale/zoom);
-    h=Math.round(dwg.h*scale/zoom);
-    console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
-    getElement('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
-    getElement('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     snapD/=2; // avoid making snap too easy
     handleR/=2; // avoid oversizing edit handles
-    // getElement('zoom').innerHTML=zoom;
+    rezoom();
 });
 getElement('zoomOutButton').addEventListener('click',function() {
-    if(zoom<zoomLimit) return;
     zoom/=2;
     console.log('zoom out to '+zoom);
-    w=Math.round(dwg.w*scale/zoom);
-    h=Math.round(dwg.h*scale/zoom);
-    console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
-    getElement('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
-    getElement('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     snapD*=2;
     handleR*=2;
-    // getElement('zoom').innerHTML=zoom;
+    rezoom();
 });
 getElement('extentsButton').addEventListener('click',function() {
-    reset();
+    zoom=1;
+    dwg.x=0;
+    dwg.y=0;
+    rezoom();
 });
 getElement('panButton').addEventListener('click',function() {
     mode='pan';
 });
-console.log('zoom; '+zoom+' w: '+w+' h: '+h);
 // DRAWING TOOLS
 getElement('curveButton').addEventListener('click',function() {
     mode='curve';
@@ -1911,7 +1902,8 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
     x=x0=Math.round(scr.x*scaleF/zoom+dwg.x);
     y=y0=Math.round(scr.y*scaleF/zoom+dwg.y);
     var val=event.target.id;
-    console.log('tap on '+val+' x,y:'+x+','+y+' x0,y0: '+x0+','+y0);
+    console.log('zoom: '+zoom+'; dwg.x: '+dwg.x);
+    console.log('tap on '+scr.x+','+scr.y+'px - '+val+' x,y:'+x+','+y+' x0,y0: '+x0+','+y0);
     if(val=='anchor')  { // move selected elements using anchor
         mode='move';
         hint('drag ANCHOR to MOVE selection');
@@ -2285,7 +2277,7 @@ function drag(event) {
             dx=x-x0;
             dy=y-y0;
             var d=Math.sqrt(dx*dx+dy*dy);
-            if(d>10) {
+            if(d>6) { // WAS d>10
                 console.log('add point');
                 var point=getElement('svg').createSVGPoint();
                 point.x=x;
@@ -2396,8 +2388,8 @@ function drag(event) {
             dx=dwg.x-(x-x0);
             dy=dwg.y-(y-y0);
             // console.log('drawing x,y: '+dx+','+dy);
-            getElement('svg').setAttribute('viewBox',dx+' '+dy+' '+(dwg.w*scale/zoom)+' '+(dwg.h*scale/zoom));
-            getElement('paper').setAttribute('viewBox',dx+' '+dy+' '+(dwg.w*scale/zoom)+' '+(dwg.h*scale/zoom));
+            getElement('svg').setAttribute('viewBox',dx+' '+dy+' '+(scr.w*scaleF/zoom)+' '+(scr.h*scaleF/zoom));
+            getElement('paper').setAttribute('viewBox',dx+' '+dy+' '+(scr.w*scaleF/zoom)+' '+(scr.h*scaleF/zoom));
             break;
         case 'line':
             if(Math.abs(x-x0)<snapD) x=x0; // snap to vertical
@@ -2569,6 +2561,7 @@ getElement('graphic').addEventListener('pointerup',function(e) {
 	            request=graphs.put(graph);
 	            request.onsuccess=function(event) {
 			        console.log('graph '+graph.id+' updated');
+			        getElement(graph.id).setAttribute('points',graph.points);
 			        var d=curvePath(pointsArray(graph.points));
 			        getElement(graph.id).setAttribute('d',d); // redraw curve element path
 			        cancel();
@@ -3794,35 +3787,11 @@ function initialise() {
     getElement('moveCircle').style.strokeWidth=scale;
     getElement('sizeDisc').setAttribute('r',handleR);
     getElement('selectionBox').setAttribute('stroke-dasharray',(scale+' '+scale+' '));
-    console.log('set drawings size to '+dwg.w+'x'+dwg.h);
-    //getElement('paper').setAttribute('width',(dwg.w+'mm'));
-    //getElement('paper').setAttribute('height',(dwg.h+'mm'));
-    getElement('svg').setAttribute('width',(dwg.w+'mm'));
-    getElement('svg').setAttribute('height',(dwg.h+'mm'));
-    w=dwg.w*scale; // viewBox is to scale
-    h=dwg.h*scale;
-    if(((dwg.w/scaleF)>scr.w)||((dwg.h/scaleF)>scr.h)) {
-        console.log('ALLOW SMALLER ZOOM');
-        zoomLimit/=2;
-        // w/=2;
-        // h/=2;
-    }
-    console.log('viewbox: '+w+'x'+h);
-    //getElement('paper').setAttribute('viewBox',"0 0 "+w+" "+h);
-    getElement('paperSheet').setAttribute('width',w);
-    getElement('paperSheet').setAttribute('height',h);
-    /*
-    getElement('background').setAttribute('width',w);
-    getElement('background').setAttribute('height',h);
-    */
+    rezoom(); // zoom starts at 1
     getElement('svg').setAttribute('viewBox',"0 0 "+w+" "+h);
     console.log('scale is '+scale);
     getElement('datum').setAttribute('transform','scale('+scale+')');
-    html="<rect x='0' y='0' width='"+w+"' height='"+h+"'/>"; // clip to drawing edges
-    getElement('clipper').innerHTML=html;
-    // console.log('drawing scale size: '+w+'x'+h+'mm; scaleF: '+scaleF+'; snapD: '+snapD);
     for(var i=0;i<10;i++) nodes.push({'x':0,'y':0,'n':i}); // 10 nodes for blueline
-    // for(var i=0;i<10;i++) console.log('node '+i+': '+nodes[i].n+' at '+nodes[i].x+','+nodes[i].y);
     getElement('countH').value=getElement('countV').value=1;
     cancel(); // set select mode
 }
@@ -4629,14 +4598,18 @@ function remove(elID,keepNodes) {
 	};
 	while(linkedDims.length>0) remove(linkedDims.pop()); // remove any linked dimensions
 }
-function reset() {
-    zoom=1;
-    dwg.x=0;
-    dwg.y=0;
-    console.log('new viewBox: '+dwg.x+','+dwg.y+' '+dwg.w+'x'+dwg.h);
-    getElement('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+(dwg.w*scale)+' '+(dwg.h*scale));
-    getElement('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+(dwg.w*scale)+' '+(dwg.h*scale));
-};
+function rezoom() {
+	w=Math.round(scr.w*scaleF/zoom);
+    h=Math.round(scr.h*scaleF/zoom);
+    console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
+    getElement('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
+    getElement('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
+    // set paperSheet to drawing size
+    getElement('paperSheet').setAttribute('width',dwg.w*scale);
+    getElement('paperSheet').setAttribute('height',dwg.h*scale);
+    getElement('clipBox').setAttribute('width',dwg.w*scale);
+    getElement('clipBox').setAttribute('height',dwg.h*scale);
+}
 async function save(fileName,data,type) {
 	var handle;
 	if(!fileName) fileName='untitled';
@@ -5040,9 +5013,10 @@ function setStyle() {
     }
     	// getElement(lineStyle).value=(val=='butt')?'square':'round';
     val=el.getAttribute('stroke-width');
+    console.log('select option '+val);
     if(val) {
         getElement('line').style.borderWidth=(val/scaleF)+'px';
-        val=Math.floor(val/4);
+        val=Math.floor(val*2);
         if(val>3) val=3;
         console.log('select option '+val);
         getElement('penSelect').options[val].selected=true;;

@@ -14,11 +14,11 @@
 </head>
 <body>
     <div id='graphic' draggable='false'>
-        <svg id='paper' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
+        <svg id='paper' xmlns='http://www.w3.org/2000/svg' x='0' y='0' width='100%' height='100%' viewBox='0 0 297 210'>
             <rect id='paperSheet' x='0' y='0' width='297' height='210' stroke='none' fill='white'>
         <div id='drawing' draggable='false'>
-		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' width='297mm' height='210mm' viewBox='0 0 297 210'>
-		    <defs id='defs'>
+		    <svg id='svg' xmlns='http://www.w3.org/2000/svg' x='0' y='0' width='100%' height='100%' viewBox='0 0 297 210'>
+		    	<defs id='defs'>
 		    	<filter id='blur1' x='-10' y='-10' width='297' height='210'>
 		            <feGaussianBlur in='SourceGraphic' stdDeviation='1'/>
 		        </filter>
@@ -51,7 +51,7 @@
 		            <path d='M5,15 L10,20 L15,15' stroke='blue' fill='none'/>
 		        </marker>
 		        <clipPath id='clipper'>
-		            <rect x='0' y='0' width='297' height='210'/>
+		            <rect id='clipBox' x='0' y='0' width='297' height='210'/>
 		        </clipPath>
 		        <g id='datum'>
 		            <polygon id='datumCross' points='-0.2,-0.2 -0.2,-80 0.2,-80 0.2,-0.2 80,-0.2 80,0.2 0.2,0.2 0.2,80 -0.2,80 -0.2,0.2 -80,0.2 -80,-0.2' stroke='none' fill='url(#fade)'/>
@@ -67,12 +67,11 @@
                     <stop offset='100%' stop-color='blue' stop-opacity="0"/>
                 </radialGradient>
 		        <g id='sets'></g>
-		    </defs>
-		    <g id='dwg' style="clip-path: url(#clipper);" draggable='false'>
-		    </g>
-		    <g id='selection'></g>
-		    <g id='handles'></g>
-		    <g id='blue'>
+		    	</defs>
+		    	<g id='dwg' clip-path="url(#clipper)" draggable='false'></g>
+		    	<g id='selection'></g>
+		    	<g id='handles'></g>
+		    	<g id='blue'>
 		        <g id='datumSet'>
 		            <use id='datum1' href='#datum' x='0' y='0'/>
 		            <use id='datum2' href='#datum' x='0' y='0'/>
@@ -209,7 +208,7 @@
         <p><span id='drawingSize'></span> | <span id='drawingAspect'></span> | 1:<span id='drawingScale'></span></p>
         <p>grid<input type='checkbox' id='gridSnap'>size: <select id='gridSize'>
             <option value=5>5mm</option>
-            <option vlaue=10>10mm</option>
+            <option value=10>10mm</option>
             <option value=25>25mm</option>
             <option value=50>50mm</option>
             <option value=100>100mm</option>
@@ -482,3 +481,4 @@
 	<script src="LinesScript.js" async></script>
 </body>
 </html>
+ 
