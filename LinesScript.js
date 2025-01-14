@@ -130,8 +130,7 @@ if(!aspect) {
     showDialog('newDrawingDialog',true);
 }
 else initialise();
-// disable annoying pop-up menu
-document.addEventListener('contextmenu',event=>event.preventDefault());
+document.addEventListener('contextmenu',event=>event.preventDefault()); // disable annoying pop-up menu
 // TOOLS
 getElement('layersButton').addEventListener('click',function() {
 	console.log('LAYERS');
@@ -1829,9 +1828,7 @@ getElement('patternMenu').addEventListener('click',function(event) {
 	getElement('pattern'+element.id).firstChild.setAttribute('fill',fill);
 	getElement('pattern'+element.id).lastChild.setAttribute('fill',fill);
 	element.setAttribute('fill','url(#pattern'+element.id+')');
-	 updateGraph(element.id,['fillType','pattern'+n]);
-	// element.setAttribute('fill','url(#pattern'+y+x+')');
-	// updateGraph(element.id,['fillType','pattern','fill','url(#pattern'+y+x+')'])
+	updateGraph(element.id,['fillType','pattern'+n]);
 });
 getElement('colorPicker').addEventListener('click',function(e) {
 	var val=e.target.id;
@@ -1890,7 +1887,7 @@ getElement('colorPicker').addEventListener('click',function(e) {
         getElement('fillColor').style.backgroundColor=val;
     }
 });
-// DRAWING POINTER DOWN
+// POINTER ACTIONS
 getElement('graphic').addEventListener('pointerdown',function(e) {
     console.log('pointer down - mode is '+mode);
     re('wind'); // WAS getElement('undoButton').style.display='none';
@@ -2248,7 +2245,6 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
     console.log('exit pointer down code');
     if(mode!='set') getElement('graphic').addEventListener('pointermove',drag);
 });
-// DRAWING POINTER MOVE
 function drag(event) {
     event.preventDefault();
     getElement('datumSet').style.display='block'; // show datum lines while dragging
@@ -2536,7 +2532,6 @@ function drag(event) {
     }
     event.stopPropagation();
 };
-// DRAWING POINTER UP
 getElement('graphic').addEventListener('pointerup',function(e) {
     console.log('pointer up at '+x+','+y+' mode: '+mode);
     getElement('graphic').removeEventListener('pointermove',drag);
@@ -3244,7 +3239,7 @@ getElement('graphic').addEventListener('pointerup',function(e) {
                     e++;
                 }
             }
-            else while((el.parentNode.id!='dwg')&&(el.parentNode.id!='drawing')) {
+            else while(el.parentNode.id!='dwg') {
                 el=el.parentNode; // sets have elements within groups in svg container
             }
             console.log('parent is '+el.parentNode.id);
@@ -3534,7 +3529,7 @@ getElement('elementLayer').addEventListener('click',function() {
 getElement('undoButton').addEventListener('click',function() {
     re('call'); // recall & reinstate previous positions/points/sizes/spins/flips
 });
-// UTILITY FUNCTIONS
+// FUNCTIONS
 function addGraph(graph) {
     console.log('add '+graph.type+' element - spin: '+graph.spin+' to layer '+graph.layer);
     console.log('fill: '+graph.fillType+', '+graph.fill);
@@ -3789,7 +3784,8 @@ function initialise() {
     getElement('selectionBox').setAttribute('stroke-dasharray',(scale+' '+scale+' '));
     rezoom(); // zoom starts at 1
     getElement('svg').setAttribute('viewBox',"0 0 "+w+" "+h);
-    console.log('scale is '+scale);
+    getElement('svg').setAttribute('left',0);
+    console.log('scale is '+scale+' svg at '+getElement('svg').getAttribute('left'));
     getElement('datum').setAttribute('transform','scale('+scale+')');
     for(var i=0;i<10;i++) nodes.push({'x':0,'y':0,'n':i}); // 10 nodes for blueline
     getElement('countH').value=getElement('countV').value=1;
@@ -3997,6 +3993,8 @@ function makeElement(g) {
         case 'arc':
             var el=document.createElementNS(ns,'path');
             el.setAttribute('id',g.id);
+            el.setAttribute('cx',g.cx);
+            el.setAttribute('cy',g.cy);
             var d='M'+g.cx+','+g.cy+' M'+g.x1+','+g.y1+' A'+g.r+','+g.r+' 0 '+g.major+','+g.sweep+' '+g.x2+','+g.y2;
             el.setAttribute('d',d);
             el.setAttribute('spin',g.spin);
@@ -4601,7 +4599,7 @@ function remove(elID,keepNodes) {
 function rezoom() {
 	w=Math.round(scr.w*scaleF/zoom);
     h=Math.round(scr.h*scaleF/zoom);
-    console.log('new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
+    console.log('screen: '+scr.w+'x'+scr.h+' scaleF: '+scaleF+' new viewBox: '+dwg.x+','+dwg.y+' '+w+'x'+h);
     getElement('svg').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     getElement('paper').setAttribute('viewBox',dwg.x+' '+dwg.y+' '+w+' '+h);
     // set paperSheet to drawing size
@@ -5029,9 +5027,9 @@ function setStyle() {
     getElement('patternOption').disabled=false;
     val=el.getAttribute('fillType');
     console.log('fillType: '+val);
-    if(val.startsWith('url')) {
+    if(val.startsWith('pattern')) {
     	getElement('fillType').value='pattern';
-    	getElement('fillCol').value=getElement('pattern'+el.id).firstChild.getAttribute('fill');
+    	getElement('fillColor').style.backgroundColor=getElement('pattern'+el.id).firstChild.getAttribute('fill');
     }
     else if(val=='none') {
     	getElement('fill').style.background='#00000000';
@@ -5097,6 +5095,7 @@ function setTransform(el) {
             x=parseInt(el.getAttribute('cx'));
             y=parseInt(el.getAttribute('cy'));
     }
+    console.log('x,y: '+x+','+y);
     var t='';
     if(flip) {
         var hor=flip&1;

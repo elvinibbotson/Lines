@@ -112,12 +112,22 @@ li {
 .spin270 {
     transform: rotate(270deg);
 }
+#monitor {
+	position: fixed;
+	top: 0;
+	right: 0;
+	height: 30px;
+	color: white;
+	background-color: black;
+	z-index: 1000;
+}
 #graphic {
-	position: absolute;
+	position: fixed;
 	left: 0;
 	top: 0;
 	width: 100%;
 	height: 100%;
+	border: solid 5px red;
 	background-color: silver;
 	pointer-events: auto;
 	touch-action: none;
@@ -127,6 +137,26 @@ li {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+}
+/*
+#drawing {
+	position: fixed;
+	width: 100%;
+	height: 100%;
+}
+*/
+#paper {
+    position: fixed;
+	left: 0;
+	top: 0;
+	background-color: #CCC;
+    z-index: 0;
+}
+#svg {
+    position: fixed;
+	left: 0;
+	top: 0;
+    z-index: 2;
 }
 #tools {
     position: fixed;
@@ -205,19 +235,6 @@ li {
     background: url(svg/undo.svg) center center no-repeat;
     z-index: 12;
     display: none;
-}
-#paper {
-    position: absolute;
-	left: 0;
-	top: 0;
-	background-color: #CCC;
-    z-index: 0;
-}
-#svg {
-    position: absolute;
-	left: 0;
-	top: 0;
-    z-index: 2;
 }
 #guides {
     display: none;
