@@ -75,8 +75,8 @@ class StringPoint {
     	this.y=Number(string.substring(n+1));
     }
 }
-scr.w=screen.width;
-scr.h=screen.height;
+scr.w=window.innerWidth; // scr.w=screen.width;
+scr.h=window.innerHeight; // scr.h=screen.height;
 dwg.x=dwg.y=0;
 console.log("screen size "+scr.w+"x"+scr.h);
 name=window.localStorage.getItem('name');
@@ -1918,7 +1918,7 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
         console.log('HANDLE '+val);
         var handle=getElement(val);
         var bounds=getBounds(element);
-        console.log('bounds: '+bounds.x+','+bounds.y+' '+bounds.width+'x'+bounds.height);
+        console.log('bounds for element '+element.id+': '+bounds.x+','+bounds.y+' '+bounds.width+'x'+bounds.height);
         getElement('blueBox').setAttribute('x',bounds.x);
         getElement('blueBox').setAttribute('y',bounds.y);
         getElement('blueBox').setAttribute('width',bounds.width);
@@ -3221,9 +3221,9 @@ getElement('graphic').addEventListener('pointerup',function(e) {
             showInfo(false);
         case 'edit':
             var el=event.target;
-            console.log('pointer up on element '+el.id);
+            console.log('pointer up on element '+el.id+' parent: '+el.parentNode.id);
             var hit=null;
-            if(el.parentNode.id=='drawing') { // drawing background - check 10x10px zone
+            if(el.parentNode.id=='graphic') { // drawing background - check 10x10px zone
                 console.log('nowt! - search locality');
                 var e=-5;
                 var n=-5;
@@ -3783,8 +3783,8 @@ function initialise() {
     getElement('sizeDisc').setAttribute('r',handleR);
     getElement('selectionBox').setAttribute('stroke-dasharray',(scale+' '+scale+' '));
     rezoom(); // zoom starts at 1
-    getElement('svg').setAttribute('viewBox',"0 0 "+w+" "+h);
-    getElement('svg').setAttribute('left',0);
+    // getElement('svg').setAttribute('viewBox',"0 0 "+w+" "+h);
+    // getElement('svg').setAttribute('left',0);
     console.log('scale is '+scale+' svg at '+getElement('svg').getAttribute('left'));
     getElement('datum').setAttribute('transform','scale('+scale+')');
     for(var i=0;i<10;i++) nodes.push({'x':0,'y':0,'n':i}); // 10 nodes for blueline
