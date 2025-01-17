@@ -38,7 +38,6 @@ var nodes=[]; // array of nodes each with x,y coordinates and element ID
 var dims=[]; // array of links between elements and dimensions
 var layers=[]; // array of layer objects
 var layer=1;
-var stackLayers=false;
 var element=null; // current element
 var elID=null; // id of current element
 var memory=[]; // holds element states to allow undo
@@ -86,7 +85,6 @@ scale=window.localStorage.getItem('scale');
 gridSize=window.localStorage.getItem('gridSize');
 gridSnap=window.localStorage.getItem('gridSnap');
 layerData=window.localStorage.getItem('layers');
-stackLayers=window.localStorage.getItem('stackLayers');
 if(name===null) name='unnamed';
 if(size===null) size=0;
 if(scale===null) scale=1;
@@ -99,31 +97,38 @@ if(!layerData) { // initialise layers first time
 	for(var i=0;i<10;i++) {
 		layers[i]={};
 		layers[i].name='';
-		layers[i].visible=(i>1)?false:true; // start just showing background and first drawing layer...
-		layers[i].checked=(i==1)?true:false; // with layer 1 active
+		layers[i].show=(i<1)?true:false; // start just showing first drawing layer...
+		layers[i].checked=(i<1)?true:false;
 	}
-	layer=1;
-	layers[0].name='background';
+	layer=0;
 	for(var i=1;i<10;i++) {
 		getElement('layerName'+i).value=layers[i].name;
 	}
+	var data={};
+    data.layers=[];
+    for(i=0;i<10;i++) {
+    	data.layers[i]={};
+    	data.layers[i].name=layers[i].name;
+    	data.layers[i].show=layers[i].show;
+    	// data.layers[i].checked=layers[i].checked;
+    }
+	var json=JSON.stringify(data);
+	// console.log('layers JSON: '+json);
+	window.localStorage.setItem('layers',json);
 }
 else { // use saved layers
 	var json=JSON.parse(layerData);
 	layers=json.layers;
 }
+console.log(layers.length+' layers - layer[0] visible? '+layers[0].show);
 for(var i=0;i<10;i++) { // set layers dialog
-	if(i>0) {
-		getElement('layer'+i).checked=layers[i].checked;
-		if(layers[i].checked) layer=i;
-		getElement('layerName'+i).value=layers[i].name;
-		if(!layers[i].name) getElement('layerName'+i).value='';
-	}
-	getElement('layerVisible'+i).checked=layers[i].visible;
+	getElement('layer'+i).checked=layers[i].checked;
+	if(layers[i].checked) layer=i;
+	getElement('layerName'+i).value=layers[i].name;
+	if(!layers[i].name) getElement('layerName'+i).value='';
+	getElement('layerCheck'+i).checked=layers[i].show;
 	getElement('layer').innerText=layer;
 }
-if(!stackLayers) stackLayers=false;
-getElement('stacked').checked=stackLayers;
 if(!aspect) {
     aspect=(scr.w>scr.h)?'landscape':'portrait';
     getElement('drawingAspect').innerText=aspect;
@@ -138,14 +143,9 @@ getElement('layersButton').addEventListener('click',function() {
 });
 for(var i=0;i<10;i++) {
 	getElement('layer'+i).addEventListener('change',setLayers);
-	if(i>0) {getElement('layerName'+i).addEventListener('change',setLayers);}
-	getElement('layerVisible'+i).addEventListener('click',setLayerVisibility);
+	getElement('layerName'+i).addEventListener('change',setLayers);
+	getElement('layerCheck'+i).addEventListener('click',setLayerVisibility);
 }
-getElement('stacked').addEventListener('click',function(){
-	stackLayers=getElement('stacked').checked;
-	window.localStorage.setItem('stackLayers',stackLayers);
-	load();
-})
 getElement('docButton').addEventListener('click',function() {
 	getElement('drawingName').innerHTML=name;
     getElement('drawingSize').innerHTML=sizes[size];
@@ -223,6 +223,7 @@ getElement('confirmLoad').addEventListener('click',async function(){
         	var data=evt.target.result;
         	console.log('data: '+data.length+' bytes');
       		var json=JSON.parse(data);
+      		layers=json.layers;
 			var transaction=db.transaction(['graphs','sets'],'readwrite');
 			var graphStore=transaction.objectStore('graphs');
 			var setStore=transaction.objectStore('sets');
@@ -259,7 +260,7 @@ getElement('confirmLoad').addEventListener('click',async function(){
 		   		console.log('load drawing - aspect:'+aspect+' scale:'+scale);
 		   		initialise();
 			}
-				reset();
+				// reset();
 	  			for(var i=0;i<json.graphs.length;i++) {
 		    		console.log('add graph '+json.graphs[i].type);
 	        		var request=graphStore.add(json.graphs[i]);
@@ -295,6 +296,7 @@ getElement('confirmSave').addEventListener('click',async function() {
     	console.log('save data to json file');
     	var data={};
     	if(name) data.name=name;
+    	data.layers=layers;
     	data.size=size;
     	data.aspect=aspect;
     	data.scale=scale;
@@ -3249,7 +3251,7 @@ getElement('graphic').addEventListener('pointerup',function(e) {
             console.log('selected: '+selection.length);
             if(hit) {
             	// CAN ONLY SELECT BACKGROUND ELEMENTS IF ON LAYER 0 AND NOT ALREADY SELECTED
-            	if(((el.getAttribute('layer')>0)||(layer<1))&&(selection.indexOf(hit)<0)) {
+            	if(selection.indexOf(hit)<0) {
                     selection.push(hit);
                     if(selection.length<2) { // only item selected
                         element=getElement(hit);
@@ -3521,9 +3523,12 @@ getElement('spin').addEventListener('change',function() {
     refreshNodes(element);
 });
 getElement('elementLayer').addEventListener('click',function() {
-	console.log('display layer choice');
-	for(var i=0;i<10;i++) {getElement('choice'+i).addEventListener('click',setLayer);}
-	getElement('choice'+layer).checked=true;
+	console.log('display layer choice for element '+element.id);
+	for(var i=0;i<10;i++) {
+		getElement('choice'+i).addEventListener('click',setLayer);
+		getElement('choice'+i).checked=(element.getAttribute('layer').indexOf(i)>=0)
+	}
+		getElement('choice'+layer).checked=true;
 	getElement('layerChooser').style.display='block';
 });
 getElement('undoButton').addEventListener('click',function() {
@@ -3840,13 +3845,7 @@ function load() {
 	var transaction=db.transaction('graphs','readonly'); // WAS readwrite
 	var graphs=transaction.objectStore('graphs');
 	console.log('READ IN GRAPHS');
-    if(stackLayers) {
-    	var index=graphs.index('layerIndex');
-    	var request=index.openCursor(null,'next'); // sort in ascending order on .layer
-    }
-    else {
-    	var request=graphs.openCursor();
-    }
+    var request=graphs.openCursor();
     request.onsuccess=function(event) {  
 	    var cursor=event.target.result;  
         if(cursor) {
@@ -3865,7 +3864,7 @@ function load() {
     console.log('all graphs loaded');
     listSets();
     listImages();
-    transaction.oncomplete=function() {setLayerVisibility()};
+    transaction.oncomplete=function() {setLayers()};
 }
 function makeElement(g) {
     console.log('make '+g.type+' element '+g.id+' layer '+g.layer);
@@ -4130,7 +4129,7 @@ function makeElement(g) {
     }
     el.setAttribute('layer',g.layer);
     console.log('element layer is '+el.getAttribute('layer'));
-    if((g.type!='text')&&(g.type!='set')&&(g.type!='image')) { // set style
+    if((g.type!='text')&&(g.type!='dim')&&(g.type!='set')&&(g.type!='image')) { // set style
     	console.log('set style - fillType is '+g.fillType+'; fill is '+g.fill);
     	el.setAttribute('stroke',g.stroke);
 		el.setAttribute('stroke-width',g.lineW);
@@ -4641,9 +4640,10 @@ function select(el,multiple) {
 	else {
 		//TRY SETTING GLOBAL VARIABLE FOR SELECTED ELEMENT
 		element=el;
-		var l=element.getAttribute('layer');
-		console.log('SELECT ELEMENT '+element.getAttribute('id')+' - layer '+l);
-		getElement('choice'+l).checked=true;
+		var layers=element.getAttribute('layer');
+		console.log('SELECT ELEMENT '+element.getAttribute('id')+' - layer '+layers);
+		getElement('layers').innerText=layers;
+		for(var l=0;l<layers.length;l++) getElement('choice'+l).checked=true;
     	getElement('handles').innerHTML=''; // clear any handles then add handles for selected element 
     	// first draw node markers?
     	for(i=0;i<nodes.length;i++) { // draw tiny circle at each node
@@ -4896,46 +4896,53 @@ function setButtons() {
     }
 }
 function setLayer() {
-	console.log('SET CURRENT ELEMENT LAYER');
-	var elementLayer=null;
+	console.log('set element layer(s)');
+	var elementLayers='';
 	for(var i=0;i<10;i++) {
-		if(getElement('choice'+i).checked) elementLayer=i;
-		if(i>0) getElement('choice'+i).innerText=i+' '+layers[i].name;
-		getElement('elementLayer').innerText=elementLayer;
+		if(getElement('choice'+i).checked) elementLayers+=i;
 	}
-	element.setAttribute('layer',elementLayer);
-	updateGraph(element.id,['layer',elementLayer]);
+	getElement('layers').innerText=elementLayers;
+	element.setAttribute('layer',elementLayers);
+	updateGraph(element.id,['layer',elementLayers]);
 }
 function setLayers() {
 	console.log('set layers');
 	for(var i=0;i<10;i++) {
-		console.log('layer '+i+' name: '+layers[i].name+' chosen: '+' visible: '+layers[i].visible);
+		console.log('layer '+i+' name: '+layers[i].name+' chosen: '+' show: '+layers[i].show);
 		if(getElement('layer'+i).checked) layer=i;
-		if(i>0) layers[i].name=getElement('layerName'+i).value; // getElement('layerName'+i).value=layers[i].name=layers[i].name;
+		layers[i].name=getElement('layerName'+i).value; // getElement('layerName'+i).value=layers[i].name=layers[i].name;
+		layers[i].show=getElement('layerCheck'+i).checked;
+		getElement('choiceName'+i).innerText=layers[i].name;
 		getElement('layer').innerText=layer;
 	}
+	console.log('layers:'+layers);
 	setLayerVisibility();
 }
 function setLayerVisibility() {
 	console.log('set layer visibilities');
 	for(var i=0;i<10;i++) {
-		layers[i].visible=getElement('layerVisible'+i).checked;
+		console.log('layer '+i+' show? '+getElement('layerCheck'+i).checked);
+		layers[i].show=getElement('layerCheck'+i).checked;
 	}
 	var children=getElement('dwg').children;
 	for(i=0;i<children.length;i++) {
-		var layer=children[i].getAttribute('layer');
-		// console.log('child '+i+' layer: '+layer);
-		var show=layers[layer].visible;
+		var elementLayers=children[i].getAttribute('layer'); // !!!!!!!!!!!!!!!!
+		console.log('child '+i+' layers: '+elementLayers);
+		var show=false;
+		for(var n=0;n<elementLayers.length;n++) {
+			var l=Number(elementLayers.charAt(n));
+			if(layers[l].show) show=true;
+		}
 		children[i].style.display=(show)?'block':'none';
 	}
 	var data={};
     data.layers=[];
     for(i=0;i<10;i++) {
     	data.layers[i]={};
-    	// console.log('save layer '+i+': '+layers[i].name+' visible: '+layers[i].visible);
+    	// console.log('save layer '+i+': '+layers[i].name+' visible: '+layers[i].show);
     	data.layers[i].name=layers[i].name;
-    	data.layers[i].visible=layers[i].visible;
-    	data.layers[i].checked=layers[i].checked;
+    	data.layers[i].show=layers[i].show;
+    	// data.layers[i].checked=layers[i].checked;
     }
 	var json=JSON.stringify(data);
 	// console.log('layers JSON: '+json);
@@ -5143,7 +5150,7 @@ function showInfo(visible,type,layer,hint) {
 	}
 	console.log(type+'; '+layer+'; '+hint);
 	getElement('type').innerText=type;
-	getElement('elementLayer').innerText=' layer '+layer;
+	getElement('layers').innerText=layer;
 	getElement('info').style.top='0px';
 	if(!hint) getElement('info').style.height='30px';
 	else {
@@ -5332,7 +5339,6 @@ request.onupgradeneeded=function(event) {
     var db=event.target.result;
     if (!db.objectStoreNames.contains('graphs')) {
         var graphs=db.createObjectStore('graphs',{keyPath:'id',autoIncrement:true});
-        graphs.createIndex('layerIndex','layer');
     }
     if (!db.objectStoreNames.contains('sets')) {
         var sets=db.createObjectStore("sets",{keyPath:'name'});
