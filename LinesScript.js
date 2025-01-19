@@ -1604,14 +1604,14 @@ getElement('line').addEventListener('click',function() {
     showDialog('stylesDialog',true);
 });
 getElement('lineType').addEventListener('change',function() {
-    var type=event.target.value;
+    var linetype=event.target.value;
     if(selection.length>0) {
     	for (var i=0;i<selection.length;i++) {
     		console.log('change line width for selected element '+i);
     		var el=getElement(selection[i]);
-    		w=parseInt(el.getAttribute('stroke-width'));
+    		w=Number(el.getAttribute('stroke-width'));
     		var val=null;
-        	switch(type) {
+        	switch(linetype) {
             	case 'none':
             	case 'solid':
                 	// var val=null;
@@ -1622,13 +1622,13 @@ getElement('lineType').addEventListener('change',function() {
             	case 'dotted':
                 	val=w+' '+w;
         	}
-        	console.log('set element '+el.id+' line type to '+type);
+        	console.log('set element '+el.id+' line type to '+linetype);
         	el.setAttribute('stroke-dasharray',val);
         	val=el.getAttribute('stroke');
-        	el.setAttribute('stroke',(type=='none')?'none':val);
+        	el.setAttribute('stroke',(linetype=='none')?'none':val);
         	// el.setAttribute('stroke',(type=='none')?'none':lineCol);
-        	updateGraph(el.id,['lineStyle',type]);
-        	updateGraph(el.id,['stroke',(type=='none')?'none':lineCol]);
+        	updateGraph(el.id,['lineType',linetype]);
+        	updateGraph(el.id,['stroke',(linetype=='none')?'none':lineColor]);
     	}
     }
     else { // change default line type
@@ -1639,9 +1639,10 @@ getElement('lineType').addEventListener('change',function() {
 getElement('lineStyle').addEventListener('change',function() {
 	var style=event.target.value;
 	if(selection.length>0) {
-		for (var i=0;i<selection.length;i++) {
+		for(var i=0;i<selection.length;i++) {
 			var el=getElement(selection[i]);
 			console.log('set element '+el.id+' line style to '+style);
+			updateGraph(el.id,['lineStyle',style]);
 			if(style=='round') {
 				el.setAttribute('stroke-linecap','round');
 				el.setAttribute('stroke-linejoin','round');
@@ -1746,23 +1747,23 @@ getElement('lineColor').addEventListener('click',function() {
     showColorPicker(true,event.clientX-16,event.clientY-16);
 });
 getElement('fillType').addEventListener('change',function() {
-    var type=event.target.value;
-    console.log('fill type: '+type);
+    var filltype=event.target.value;
+    console.log('fill type: '+filltype);
     if(selection.length>0) {
     	var col=getElement('fillColor').value;
     	for (var i=0;i<selection.length;i++) {
     		console.log('change fill type for selected element '+i);
     		var el=getElement(selection[i]);
-    		if(type=='pattern') {
+    		if(filltype=='pattern') {
     			showDialog('patternMenu',true);
     			return;
     		}
     		else {
     			var ptn=getElement('pattern'+el.id); // attempt removal of any associated pattern
     			if(ptn) ptn.remove();
-	        	el.setAttribute('fill',(type=='none')?'none':col);
+	        	el.setAttribute('fill',(filltype=='none')?'none':fillColor);
     		}
-        	updateGraph(el.id,['fillType',type]);
+        	updateGraph(el.id,['fillType',filltype]);
     	}
     }
     else { // change default fillType type
@@ -1821,8 +1822,9 @@ getElement('patternMenu').addEventListener('click',function(event) {
 	var fill=element.getAttribute('fill');
 	console.log('set element fill (currently '+fill+') to pattern'+n);
 	var html="<pattern id='pattern"+element.id+"' index='"+n+"' width='"+pattern[n].width+"' height='"+pattern[n].height+"' patternUnits='userSpaceOnUse'";
-	if(pattern[n].spin>0) html+=" patternTransform='rotate("+pattern[n].spin+")'";
-	html+='>'+pattern[n].svg+'</pattern>';
+	html+=" patternTransform='scale("+scale+")";
+	if(pattern[n].spin>0) html+=" rotate("+pattern[n].spin+")"; // WAS " patternTransform='rotate("+pattern[n].spin+")'";
+	html+="'>"+pattern[n].svg+'</pattern>';
 	console.log('pattern HTML: '+html);
 	getElement('defs').innerHTML+=html;
 	var el=getElement('pattern'+element.id);
@@ -3528,7 +3530,7 @@ getElement('elementLayer').addEventListener('click',function() {
 		getElement('choice'+i).addEventListener('click',setLayer);
 		getElement('choice'+i).checked=(element.getAttribute('layer').indexOf(i)>=0)
 	}
-		getElement('choice'+layer).checked=true;
+	getElement('choice'+layer).checked=true;
 	getElement('layerChooser').style.display='block';
 });
 getElement('undoButton').addEventListener('click',function() {
@@ -4640,10 +4642,10 @@ function select(el,multiple) {
 	else {
 		//TRY SETTING GLOBAL VARIABLE FOR SELECTED ELEMENT
 		element=el;
-		var layers=element.getAttribute('layer');
-		console.log('SELECT ELEMENT '+element.getAttribute('id')+' - layer '+layers);
-		getElement('layers').innerText=layers;
-		for(var l=0;l<layers.length;l++) getElement('choice'+l).checked=true;
+		var elementLayers=element.getAttribute('layer');
+		console.log('SELECT ELEMENT '+element.getAttribute('id')+' - layer '+elementLayers);
+		getElement('layers').innerText=elementLayers;
+		for(var l=0;l<elementLayers.length;l++) getElement('choice'+l).checked=true;
     	getElement('handles').innerHTML=''; // clear any handles then add handles for selected element 
     	// first draw node markers?
     	for(i=0;i<nodes.length;i++) { // draw tiny circle at each node
@@ -4774,7 +4776,7 @@ function select(el,multiple) {
         	    var bounds=el.getBBox();
             	w=Math.round(bounds.width);
 	            h=Math.round(bounds.height);
-	            console.log('bounds: '+bounds.x+','+bounds.y+' - '+bounds.width+'x'+bounds.height);
+	            console.log('bounds: '+bounds.x+','+bounds.y+' - '+w+'x'+h+'; layer: '+elementLayers);
         	    var html="<use id='mover0' href='#mover' x='"+bounds.x+"' y='"+bounds.y+"'/>";
 	            getElement('handles').innerHTML+=html; // circle handle moves text
 	            var t=element.innerHTML;
@@ -4793,9 +4795,8 @@ function select(el,multiple) {
 	            }
 	            else content=t;
 	            getElement('text').value=content;
-            	getElement('text').value=content;
             	setSizes('text',el.getAttribute('spin'),w,h);
-            	showInfo(true,'TEXT',el.layer);
+            	showInfo(true,'TEXT',elementLayers);
             	showDialog('textDialog',true);
             	node=0; // default anchor node
         	    mode='edit';
@@ -5301,7 +5302,7 @@ function type(el) {
     else if(el instanceof SVGImageElement) {return 'image';}
 }
 function updateGraph(id,parameters,textElement) {
-    // console.log('adjust '+attribute+' of graph '+id+' to '+val);
+	console.log('update graph '+id+'... '+parameters);
 	var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
 	var request=graphs.get(Number(id));
 	request.onsuccess=function(event) {
@@ -5309,11 +5310,12 @@ function updateGraph(id,parameters,textElement) {
 	    console.log('got graph '+graph.id);
 	    while(parameters.length>0) {
 	        var attribute=parameters.shift();
-	        val=parameters.shift();
+	        var val=parameters.shift();
 	        console.log('set '+attribute+' to '+val);
-	        if(attribute=='text') graph.text=val;
-	        else if(attribute=='layer') graph.layer=parseInt(val);
-	        else eval('graph.'+attribute+'="'+val+'"');
+	        // if(attribute=='text') graph.text=val;
+	        // else if(attribute=='layer') graph.layer=val;
+	        // else 
+	        eval('graph.'+attribute+'="'+val+'"');
 	    }
 	    if(graph.type=='text') console.log('text: '+graph.text)
 	    request=graphs.put(graph);
