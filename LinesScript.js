@@ -337,12 +337,23 @@ getElement('confirmSave').addEventListener('click',async function() {
     }
     else if(getElement('print').checked) {
     	console.log('save drawing as SVG');
-    	// fileName+='.svg';
     	getElement('datumSet').style.display='none';
-    	var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+dwg.w+'mm" height="'+dwg.h+'mm" viewBox="0 0 '+dwg.w+' '+dwg.h+'">';
-    	svg+=getElement('dwg').innerHTML+'</svg>';
-    	console.log('SVG: '+svg);
-    	save(name,svg,'svg');
+    	var content='<svg xmlns="http://www.w3.org/2000/svg" width="'+dwg.w+'mm" height="'+dwg.h+'mm" viewBox="0 0 '+dwg.w+' '+dwg.h+'">';
+    	var elements=getElement('dwg').children;
+    	for(var i=0;i<elements.length;i++) {
+    		var el=elements[i];
+    		console.log('element '+el+': '+el.outerHTML+'; style: '+el.getAttribute('style')+'; fillType: '+el.getAttribute('fillType'));
+    		if(el.getAttribute('style')===null) content+=el.outerHTML;
+    		else if(el.getAttribute('style').indexOf('none')<0) content+=el.outerHTML;
+    		if(el.getAttribute('fillType').startsWith('pattern')) {
+    			console.log('PATTERN FILL: pattern'+el.id);
+	    		content+=getElement('pattern'+el.id).outerHTML; // include pattern definition
+    		}
+    	}
+    	content+='</svg>';
+    	// content+=getElement('dwg').innerHTML+'</svg>';
+    	console.log('SVG: '+content);
+    	save(name,content,'svg');
 		getElement('datumSet').style.display='block';
     }
     else { // save set(s)
@@ -583,7 +594,7 @@ getElement('deleteButton').addEventListener('click',function() {
         else { // remove individual point
             var n=points.length;
             if(((t=='line')&&(n>2))||((t=='shape')&&(n>3))) { // if minimum number of nodes, just remove element
-                hint('DELETE: tap circle) handle to remove element or a disc handle to remove a node');
+                hint('DELETE: tap circle handle to remove element or a disc handle to remove a node');
                 mode='removePoint'; // remove whole element or one point
                 return;
             }
@@ -1068,7 +1079,7 @@ getElement('copyButton').addEventListener('click',function() {
                     g.x=Number(element.getAttribute('x'));
                     g.y=Number(element.getAttribute('y'));
                     g.flip=Number(element.getAttribute('flip'));
-                    g.text=element.innerHTML;
+                    g.text=element.getAttribute('text');
                     g.textSize=Number(element.getAttribute('font-size'));
                     var style=element.getAttribute('font-style');
                     g.textStyle=(style=='italic')?'italic':'fine';
@@ -1593,9 +1604,6 @@ getElement('confirmJoin').addEventListener('click',function() {
     json+='"}';
     console.log('save set JSON: '+json);
     addSet(json);
-    /* CODE TO SAVE SSET AS JSON FILE
-    download(json,name+'.json','text/plain');
-    */
     showDialog('joinDialog',false);
 });
 // STYLES
@@ -1742,7 +1750,6 @@ getElement('textStyle').addEventListener('change',function() {
     }
 });
 getElement('lineColor').addEventListener('click',function() {
-    // console.log('show shadeMenu');
     getElement('colorPicker').mode='line';
     showColorPicker(true,event.clientX-16,event.clientY-16);
 });
@@ -1758,12 +1765,16 @@ getElement('fillType').addEventListener('change',function() {
     			showDialog('patternMenu',true);
     			return;
     		}
-    		else {
+    		else { // solid or no fill
     			var ptn=getElement('pattern'+el.id); // attempt removal of any associated pattern
+    			var fill=ptn.firstChild.getAttribute('fill');
     			if(ptn) ptn.remove();
 	        	el.setAttribute('fill',(filltype=='none')?'none':fillColor);
     		}
-        	updateGraph(el.id,['fillType',filltype]);
+    		if(filltype=='none') fill='none';
+    		el.setAttribute('fillType',filltype);
+    		el.setAttribute('fill',fill);
+        	updateGraph(el.id,['fillType',filltype,'fill',fill]);
     	}
     }
     else { // change default fillType type
@@ -1816,29 +1827,48 @@ getElement('patternOption').addEventListener('click',function() {
 	if(element && element.getAttribute('fill').startsWith('url')) showDialog('patternMenu',true);
 });
 getElement('patternMenu').addEventListener('click',function(event) {
-	x=Math.floor((event.clientX-50)/32);
-	y=Math.floor((event.clientY-50)/32);
-	var n=y*6+x;
-	var fill=element.getAttribute('fill');
+	x=Math.floor((event.clientX-53)/30); // column 0-4
+	y=Math.floor((event.clientY-52)/30); // row 0-2
+	var n=y*5+x; // 5 per row - n is 0-14
+	var fill=element.getAttribute('fill'); // fill colour/pattern
 	console.log('set element fill (currently '+fill+') to pattern'+n);
-	var html="<pattern id='pattern"+element.id+"' index='"+n+"' width='"+pattern[n].width+"' height='"+pattern[n].height+"' patternUnits='userSpaceOnUse'";
-	html+=" patternTransform='scale("+scale+")";
-	if(pattern[n].spin>0) html+=" rotate("+pattern[n].spin+")"; // WAS " patternTransform='rotate("+pattern[n].spin+")'";
-	html+="'>"+pattern[n].svg+'</pattern>';
-	console.log('pattern HTML: '+html);
-	getElement('defs').innerHTML+=html;
-	var el=getElement('pattern'+element.id);
-	// console.log('pattern code '+el.innerHTML);
-	getElement('pattern'+element.id).firstChild.setAttribute('fill',fill);
-	getElement('pattern'+element.id).lastChild.setAttribute('fill',fill);
-	element.setAttribute('fill','url(#pattern'+element.id+')');
-	updateGraph(element.id,['fillType','pattern'+n]);
+	if(fill.startsWith('url')) { // amend pattern choice
+		var p=getElement('pattern'+element.id);
+		var color=pattern.firstChild.getAttribute('fill');
+		p.setAttribute('index',n);
+		p.setAttribute('width',pattern[n].width);
+		p.setAttribute('height',pattern[n].height);
+		p.innerHTML=tile[pattern[n].tile];
+		p.firstChild.setAttribute('fill',color);
+		updateGraph(element.id,['fillType','pattern'+n]);
+	}
+	else { // set fill to pattern
+		console.log('set pattern for element '+element.id);
+		console.log(' pattern '+n+' size: '+pattern[n].width+'x'+pattern[n].height);
+		var html="<pattern id='pattern"+element.id+"' index='"+n+"' width='"+pattern[n].width+"' height='"+pattern[n].height+"' patternUnits='userSpaceOnUse'";
+		if((scale>1)||(pattern[n].spin!=0)) { // set transform
+			html+=" patternTransform='";
+			if(scale>1) html+="scale("+scale+")";
+			if(pattern[n].spin!=0) html+=" rotate("+pattern[n].spin+")";
+			html+="'";
+		}
+		html+="'>"+tile[pattern[n].tile]+'</pattern>';
+		console.log('pattern HTML: '+html);
+		getElement('defs').innerHTML+=html;
+		var el=getElement('pattern'+element.id);
+		getElement('pattern'+element.id).firstChild.setAttribute('fill',fill);
+		getElement('pattern'+element.id).lastChild.setAttribute('fill',fill);
+		element.setAttribute('fillType','pattern');
+		element.setAttribute('fill','url(#pattern'+element.id+')');
+		updateGraph(element.id,['fillType','pattern'+n]);
+	}
+	
 });
 getElement('colorPicker').addEventListener('click',function(e) {
 	var val=e.target.id;
 	showColorPicker(false);
 	if(getElement('colorPicker').mode=='line') { // line colour
-        if(val=='white') val='blue';
+        // if(val=='white') val='blue';
         if(selection.length>0) { // change line shade of selected elements
         	for(var i=0;i<selection.length;i++) {
         		var el=getElement(selection[i]);
@@ -1867,8 +1897,8 @@ getElement('colorPicker').addEventListener('click',function(e) {
         	}
         }
         else { // change default line colour
-            // console.log('line colour: '+val);
-            if(val=='blue') val='black'; // cannot have blue <ref> choice as default
+            console.log('line colour: '+val);
+            if(val=='white') val='black'; // cannot have white lines
             lineColor=val;
         }
         getElement('line').style.borderColor=val;
@@ -1881,7 +1911,10 @@ getElement('colorPicker').addEventListener('click',function(e) {
     		var el=getElement(selection[i]);
     		if(type(el)=='text') continue; // text fill colour uses line colour
     		var fill=getElement('fillType').value;
-        	if(fill=='pattern') getElement('pattern'+element.id).firstChild.setAttribute('fill',val);
+        	if(fill=='pattern') { // change colour of one or two elements in pattern tile
+        		getElement('pattern'+element.id).firstChild.setAttribute('fill',val);
+        		getElement('pattern'+element.id).lastChild.setAttribute('fill',val);
+        	}
         	else el.setAttribute('fill',(fill=='solid')?val:'none');
         	updateGraph(el.id,['fill',val]);
     	}
@@ -3530,7 +3563,7 @@ getElement('elementLayer').addEventListener('click',function() {
 		getElement('choice'+i).addEventListener('click',setLayer);
 		getElement('choice'+i).checked=(element.getAttribute('layer').indexOf(i)>=0)
 	}
-	getElement('choice'+layer).checked=true;
+	// getElement('choice'+layer).checked=true;
 	getElement('layerChooser').style.display='block';
 });
 getElement('undoButton').addEventListener('click',function() {
@@ -3688,14 +3721,16 @@ function curvePath(pts) {
 	// console.log('curve path: '+d);
 	return d;
 }
+/*
 function download(content,fileName,contentType) {
-	console.log("save as "+fileName);
+	console.log("save as "+fileName+'; type: '+contentType);
 	var a=document.createElement('a');
-	var file=new Blob([content], {type:contentType});
+	var file=new Blob([content],{type:contentType});
 	a.href=URL.createObjectURL(file);
 	a.download=fileName;
 	a.click();
 }
+*/
 function getAngle(x0,y0,x1,y1) {
     var dx=x1-x0;
     var dy=y1-y0;
@@ -3789,9 +3824,7 @@ function initialise() {
     getElement('moveCircle').style.strokeWidth=scale;
     getElement('sizeDisc').setAttribute('r',handleR);
     getElement('selectionBox').setAttribute('stroke-dasharray',(scale+' '+scale+' '));
-    rezoom(); // zoom starts at 1
-    // getElement('svg').setAttribute('viewBox',"0 0 "+w+" "+h);
-    // getElement('svg').setAttribute('left',0);
+    rezoom(); // zoom starts at 1 
     console.log('scale is '+scale+' svg at '+getElement('svg').getAttribute('left'));
     getElement('datum').setAttribute('transform','scale('+scale+')');
     for(var i=0;i<10;i++) nodes.push({'x':0,'y':0,'n':i}); // 10 nodes for blueline
@@ -4150,7 +4183,7 @@ function makeElement(g) {
 			console.log('fillType is '+g.fillType);
 			var html="<pattern id='pattern"+g.id+"' index='"+n+"' width='"+pattern[n].width+"' height='"+pattern[n].height+"' patternUnits='userSpaceOnUse'";
 			if(pattern[n].spin>0) html+=" patternTransform='rotate("+pattern[n].spin+")'";
-			html+='>'+pattern[n].svg+'</pattern>';
+			html+='>'+tile[pattern[n].tile]+'</pattern>';
 			console.log('pattern HTML: '+html);
 			getElement('defs').innerHTML+=html;
 			getElement('pattern'+g.id).firstChild.setAttribute('fill',g.fill);
@@ -4613,23 +4646,34 @@ async function save(fileName,data,type) {
 	var handle;
 	if(!fileName) fileName='untitled';
 	if(fileName.indexOf(type)<0) fileName+='.'+type;
-	opts={suggestedName: fileName};
+	if(type=='svg') opts={suggestedName: fileName, types:[{description:'svg file',accept:{'image/svg+xml':['.svg']}}]};
+	else opts={suggestedName: fileName};
 	handle=await window.showSaveFilePicker(opts);
 	console.log('file handle: '+handle);
-	window.localStorage.setItem('name',handle.name);
+	if(!name) { // save drawing name at first save
+		name=handle.name;
+		if(name.indexOf('.')>0) name=name.substring(0,name.indexOf('.'));
+		window.localStorage.setItem('name',name);
+	}
 	var writable=await handle.createWritable();
     await writable.write(data);
     await writable.close();
 }
+/*
 function saveSVG() {
     getElement('datumSet').style.display='none';
-    var fileName=getElement('printName').value+'.svg';
+    
+    var fileName='print.svg';
+    // var fileName=getElement('printName').value+'.svg';
+    console.log('drawing size: '+dwg.w+'x'+dwg.h);
     var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+dwg.w+'mm" height="'+dwg.h+'mm" viewBox="0 0 '+dwg.w+' '+dwg.h+'">';
     svg+=getElement('dwg').innerHTML+'</svg>';
-    console.log('SVG: '+svg);
+    // console.log('SVG: '+svg);
     download(svg,fileName,'data:image/svg+xml');
+    
 	getElement('datumSet').style.display='block';
 }
+*/
 function select(el,multiple) {
 	if(multiple) { // one of multiple selection - highlight in blue
 		console.log('select element '+el.id+' of multiple selection');
@@ -4928,7 +4972,7 @@ function setLayerVisibility() {
 	var children=getElement('dwg').children;
 	for(i=0;i<children.length;i++) {
 		var elementLayers=children[i].getAttribute('layer'); // !!!!!!!!!!!!!!!!
-		console.log('child '+i+' layers: '+elementLayers);
+		console.log('child '+i+'; id: '+children[i].id+'; layers: '+elementLayers);
 		var show=false;
 		for(var n=0;n<elementLayers.length;n++) {
 			var l=Number(elementLayers.charAt(n));
@@ -5124,9 +5168,7 @@ function showDialog(dialog,visible) {
     currentDialog=(visible)?dialog:null; // update currentDialog
 }
 function showColorPicker(visible,x,y) {
-    var m=getElement('colorPicker').mode;
-    console.log('show colorPicker - mode is '+m);
-    getElement('#FFF').setAttribute('fill',(m=='line')?'blue':'white');
+    console.log('show colorPicker');
     if(x) {
         getElement('colorPicker').style.left=x+'px';
         getElement('colorPicker').style.top=y+'px';
@@ -5362,6 +5404,32 @@ else { //Register the ServiceWorker
 	});
 }
 var pattern=[];
+var tile=[];
+pattern[0]={'width':4, 'height':2, 'spin':0, 'tile':0};
+pattern[1]={'width':4, 'height':2, 'spin':90, 'tile':0};
+pattern[2]={'width':4, 'height':2, 'spin':0, 'tile':1};
+pattern[3]={'width':4, 'height':2, 'spin':90, 'tile':1};
+pattern[4]={'width':2, 'height':2, 'spin':0, 'tile':2};
+pattern[5]={'width':4, 'height':2, 'spin':-45, 'tile':0};
+pattern[6]={'width':4, 'height':2, 'spin':45, 'tile':0};
+pattern[7]={'width':4, 'height':2, 'spin':-45, 'tile':1};
+pattern[8]={'width':4, 'height':2, 'spin':45, 'tile':1};
+pattern[9]={'width':2, 'height':2, 'spin':45, 'tile':2};
+pattern[10]={'width':1, 'height':1, 'spin':0, 'tile':3};
+pattern[11]={'width':4, 'height':4, 'spin':0, 'tile':4};
+pattern[12]={'width':1, 'height':1, 'spin':0, 'tile':5};
+pattern[13]={'width':2, 'height':2, 'spin':0, 'tile':6};
+pattern[14]={'width':1, 'height':1, 'spin':45, 'tile':6};
+
+tile[0]='<rect x="0" y="1" width="4" height="0.5" stroke="none"/>';
+tile[1]='<rect x="0" y="1" width="4" height="1" stroke="none"/>';
+tile[2]='<rect x="0" y="1" width="2" height="0.5" stroke="none"/><rect x="1" y="0" width="0.5" height="2" stroke="none"/>';
+tile[3]='<rect x="0" y="0" width="0.5" height="0.5" stroke="none"/><rect x="0.5" y="0.5" width="0.5" height="0.5" stroke="none"/>'
+tile[4]='<rect x="0" y="0" width="2" height="2" stroke="none"/><rect x="2" y="2" width="2" height="2" stroke="none"/>';
+tile[5]='<circle cx="0.5" cy="0.5" r="0.25" stroke="none"/>';
+tile[6]='<circle cx="1" cy="1" r="0.5" stroke="none"/>';
+
+/* OLD PATTERN CODE
 pattern[0]={'width':4, 'height':2, 'spin':0, 'svg':'<rect x="0" y="1" width="4" height="0.5" stroke="none"/>'};
 pattern[1]={'width':4, 'height':2, 'spin':0, 'svg':'<rect x="0" y="1" width="4" height="1" stroke="none"/>'};
 pattern[2]={'width':4, 'height':4, 'spin':0, 'svg':'<rect x="0" y="2" width="4" height="2" stroke="none"/>'};
@@ -5398,3 +5466,4 @@ pattern[32]={'width':4, 'height':4, 'spin':0, 'svg':'<circle cx="2" cy="2" r="1"
 pattern[33]={'width':1, 'height':1, 'spin':45, 'svg':'<circle cx="0.5" cy="0.5" r="0.25" stroke="none"/>'};
 pattern[34]={'width':2, 'height':2, 'spin':45, 'svg':'<circle cx="1" cy="1" r="0.5" stroke="none"/>'};
 pattern[35]={'width':4, 'height':4, 'spin':45, 'svg':'<circle cx="2" cy="2" r="1" stroke="none"/>'};
+*/
