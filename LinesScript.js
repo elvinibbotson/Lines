@@ -37,7 +37,8 @@ var db=null; // indexed database holding SVG elements
 var nodes=[]; // array of nodes each with x,y coordinates and element ID
 var dims=[]; // array of links between elements and dimensions
 var layers=[]; // array of layer objects
-var layer=1;
+var layer=0;
+var thisLayerOnly=false; // limit select & edit to current layer?
 var element=null; // current element
 var elID=null; // id of current element
 var memory=[]; // holds element states to allow undo
@@ -97,8 +98,8 @@ if(!layerData) { // initialise layers first time
 	for(var i=0;i<10;i++) {
 		layers[i]={};
 		layers[i].name='';
-		layers[i].show=(i<1)?true:false; // start just showing first drawing layer...
-		layers[i].checked=(i<1)?true:false;
+		layers[i].show=(i<0)?true:false; // start just showing first drawing layer...
+		layers[i].checked=(i<0)?true:false;
 	}
 	layer=0;
 	for(var i=1;i<10;i++) {
@@ -146,6 +147,10 @@ for(var i=0;i<10;i++) {
 	getElement('layerName'+i).addEventListener('change',setLayers);
 	getElement('layerCheck'+i).addEventListener('click',setLayerVisibility);
 }
+getElement('thisLayerOnly').addEventListener('change',function() {
+	thisLayerOnly=getElement('thisLayerOnly').checked;
+	console.log('this layer only is '+thisLayerOnly);
+});
 getElement('docButton').addEventListener('click',function() {
 	getElement('drawingName').innerHTML=name;
     getElement('drawingSize').innerHTML=sizes[size];
@@ -187,9 +192,13 @@ getElement('createNewDrawing').addEventListener('click',function() {
     elID=0;
     // CLEAR DRAWING IN HTML & DATABASE
     getElement('dwg').innerHTML=''; // clear drawing
-    /*
-    getElement('ref').innerHTML="<rect id='background' x='0' y='0' width='"+dwg.w+"' height='"+dwg.h+"' stroke='none' fill='white'/>"; // clear background layer
-    */
+    layer=0; // reset layers
+	for(var i=0;i<10;i++) {
+		getElement('layer'+i).checked=layers[i].checked=(i==0); // select current layer 0
+		getElement('layerName'+i).value=layers[i].name='';
+		getElement('layerCheck'+i).checked=layers[i].show=(i==0); // start with just layer 0 visible
+		getElement('layer').innerText=layer;
+	}
     getElement('handles').innerHTML=''; // clear any edit handles
     var request=db.transaction('graphs','readwrite').objectStore('graphs').clear(); // clear graphs database
 	request.onsuccess=function(event) {
@@ -553,6 +562,7 @@ getElement('imageList').addEventListener('change',function() {
     var request=db.transaction('images','readonly').objectStore('images').get(imageName);
 	request.onsuccess=function(event) {
 		graph=event.target.result;
+		console.log('image is '+graph.name);
 		graph.type='image';
 		// graph.name=imageName;
 		graph.x=30*scale;
@@ -572,9 +582,15 @@ getElement('addButton').addEventListener('click',function() { // add point after
     var t=type(element);
     if((t!='line')&&(t!='shape')) return; // can only add points to lines/shapes
     console.log('add point');
-    hint('ADD POINT: tap on previous point');
-    mode='addPoint';
-    // showDialog('pointDialog',false);
+    var points=getElement('bluePolyline').points;
+    if(points.length>9) {
+    	hint('10 node limit');
+    	cancel();
+    }
+    else {
+    	hint('ADD POINT: tap on previous point');
+    	mode='addPoint';
+    }
 });
 getElement('deleteButton').addEventListener('click',function() {
     var t=type(element);
@@ -2106,12 +2122,12 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
                     pts+=x+','+y;
                 }
                 else { // insert point midway between selected point and next point
-                    console.log('add between points '+val+'('+points[val].x+','+points[val].y+') and '+(val+1));
-                    x=Math.round((points[val].x+points[val+1].x)/2);
-                    y=Math.round((points[val].y+points[val+1].y)/2);
+                    console.log('add between points '+node+'('+points[node].x+','+points[node].y+') and '+(node+1));
+                    x=Math.round((points[node].x+points[node+1].x)/2);
+                    y=Math.round((points[node].y+points[node+1].y)/2);
                     var i=0;
                     while(i<points.length) {
-                        if(i==val) pts+=points[i].x+','+points[i].y+' '+x+','+y+' ';
+                        if(i==node) pts+=points[i].x+','+points[i].y+' '+x+','+y+' ';
                         else pts+=points[i].x+','+points[i].y+' ';
                         console.log('i: '+i+' pts: '+pts);
                         i++;
@@ -2129,7 +2145,7 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
                 console.log('point '+node+': '+points[node].x+','+points[node].y);
                 var pts='';
                 for(var i=0;i<points.length-1;i++) {
-                    if(i<val) pts+=points[i].x+','+points[i].y+' ';
+                    if(i<node) pts+=points[i].x+','+points[i].y+' ';
                     else pts+=points[i+1].x+','+points[i+1].y+' ';
                 }
                 element.setAttribute('points',pts);
@@ -2630,6 +2646,14 @@ getElement('graphic').addEventListener('pointerup',function(e) {
             if(selection.length>0) {
                 dx=x-x0;
                 dy=y-y0;
+                if((Math.abs(dx)<snapD)&&(Math.abs(dy)<snapD)) { // click without dragging - deselect this element
+                	var n=selection.indexOf(elID);
+                	console.log('tap on selection['+n+']');
+                	selection.splice(n,1); // remove from selection
+                	
+                	getElement('selection').removeChild(getElement('selection').children[n]);
+                	return;
+                }
                 console.log('MOVED by '+dx+','+dy+' from '+x0+','+y0+' to '+x+','+y);
             }
             else selection.push(elID); // move single element
@@ -2850,6 +2874,8 @@ getElement('graphic').addEventListener('pointerup',function(e) {
             refreshNodes(blueline); // set blueline nodes to match new point
             if((d<snapD)||(n>9)) { // click/tap to finish polyline - capped to 10 points
                 console.log('END LINE');
+                if(d<snapD) hint('shape closed');
+                else if(n>9) hint('10 node limit');
                 var points=getElement('bluePolyline').points;
                 console.log('points: '+points.length);
                 // create polyline element
@@ -3281,32 +3307,43 @@ getElement('graphic').addEventListener('pointerup',function(e) {
             }
             console.log('parent is '+el.parentNode.id);
             if(el.parentNode.id=='dwg') hit=el.id;
-            if(hit) console.log('HIT: '+hit+' type: '+type(el)+' layer '+el.getAttribute('layer'));
+            if(hit) { // NEW - CHECK IF ONLY EDITING CURRENT LAYER
+            	console.log('HIT: '+hit+' type: '+type(el)+' layer '+el.getAttribute('layer')+'; this layer only is '+thisLayerOnly);
+            	if(thisLayerOnly && el.getAttribute('layer')!=layer) hit=null; // 
+            }
             else console.log('MISS');
             console.log('selected: '+selection.length);
             if(hit) {
-            	// CAN ONLY SELECT BACKGROUND ELEMENTS IF ON LAYER 0 AND NOT ALREADY SELECTED
-            	if(selection.indexOf(hit)<0) {
-                    selection.push(hit);
-                    if(selection.length<2) { // only item selected
-                        element=getElement(hit);
-                        select(element,false);
-                    }
-                    else { // multiple selection
-                        console.log('add '+type(el)+' '+el.id+' to multiple selection');
-                        // NEW CODE...
-                        if(selection.length<3) {
-                            console.log('SECOND SELECTED ITEM');
-                            getElement('handles').innerHTML='';
-                            select(getElement(selection[0]),true); // highlight first selected item
-                        }
-                        select(el,true);
-                    }
-                    console.log('selected item: '+selection[0]);
-                    setStyle();
-                    setButtons();
-                } // else ignore clicks on items already selected
+            	var selectIndex=selection.indexOf(hit);
+            	if(selectIndex>=0) { // second hit deselects
+            		selection.splice(selectIndex,1); // if already selected, deselect
+            		getElement('handles').innerHTML='';
+            		getElement('blueBox').setAttribute('width',0);
+            		getElement('blueBox').setAttribute('height',0);
+            	}
+            	else {
+            		if(selection.indexOf(hit)<0) {
+                    	selection.push(hit);
+                    	if(selection.length<2) { // only item selected
+                        	element=getElement(hit);
+                        	select(element,false);
+                    	}
+                    	else { // multiple selection
+                        	console.log('add '+type(el)+' '+el.id+' to multiple selection');
+                        	// NEW CODE...
+                        	if(selection.length<3) {
+                            	console.log('SECOND SELECTED ITEM');
+                            	getElement('handles').innerHTML='';
+                            	select(getElement(selection[0]),true); // highlight first selected item
+                        	}
+                        	select(el,true);
+                    	}
+                    	console.log('selected item: '+selection[0]);
+                    	setStyle();
+                    	setButtons();
+                	} // else ignore clicks on items already selected
                 showEditTools(true);
+            	}
             }
             else { // TRY THIS - CLICK ON BACKGROUND CLEARS SELECTION
                 cancel();
@@ -3793,9 +3830,7 @@ function hint(text) {
     getElement('hint').innerHTML=text; //display text for 10 secs
     var t=parseInt(getElement('info').style.top);
     console.log('info top: '+t);
-    // getElement('info').style.top='-25px';
     getElement('info').style.height='50px';
-    // setTimeout(function(){getElement('info').style.top='-50px';},10000);
 	setTimeout(function(){getElement('info').style.height='30px';},10000);
 }
 function initialise() {
@@ -3829,6 +3864,7 @@ function initialise() {
     getElement('datum').setAttribute('transform','scale('+scale+')');
     for(var i=0;i<10;i++) nodes.push({'x':0,'y':0,'n':i}); // 10 nodes for blueline
     getElement('countH').value=getElement('countV').value=1;
+    
     cancel(); // set select mode
 }
 function listImages() {
@@ -4524,7 +4560,9 @@ function refreshNodes(el) {
             elNodes[0].y=oy;
             if(points.length>elNodes.length) { // adding point
                 elNodes.push({'x':0,'y':0}); // initialise new node at 0,0 - will soon be reset
+                console.log('node added');
             }
+            console.log(points.length+' points; '+elNodes.length+' nodes');
             for(var i=1;i<points.length;i++) {
                 if(spin==0) { // no spin
                     elNodes[i].x=Number(points[i].x);
@@ -4756,10 +4794,10 @@ function select(el,multiple) {
             	getElement('guides').style.display='block';
             	// draw handles
             	var html="<use id='mover0' href='#mover' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // center
-            	html+="<use id='sizer1' href='#sizer' x='"+x+"' y='"+y+"'/>"; // top/left
-            	html+="<use id='sizer2' href='#sizer' x='"+(x+w)+"' y='"+y+"'/>"; // top/right
-            	html+="<use id='sizer3' href='#sizer' x='"+x+"' y='"+(y+h)+"'/>"; // bottom/left
-            	html+="<use id='sizer4' href='#sizer' x='"+(x+w)+"' y='"+(y+h)+"'/>"; // bottom/right
+            	// html+="<use id='sizer1' href='#sizer' x='"+x+"' y='"+y+"'/>"; // top/left JUST USE 1 SIZER
+            	// html+="<use id='sizer2' href='#sizer' x='"+(x+w)+"' y='"+y+"'/>"; // top/right
+            	// html+="<use id='sizer3' href='#sizer' x='"+x+"' y='"+(y+h)+"'/>"; // bottom/left
+            	html+="<use id='sizer1' href='#sizer' x='"+(x+w)+"' y='"+(y+h)+"'/>"; // bottom/right WAS sizer4
             	getElement('handles').innerHTML+=html;
             	console.log('spin: '+el.getAttribute('spin')+' layer is '+el.getAttribute('layer'));
             	setSizes('box',el.getAttribute('spin'),w,h);
@@ -4780,10 +4818,10 @@ function select(el,multiple) {
             	getElement('guides').style.display='block';
             	// draw handles
             	var html="<use id='mover0' href='#mover' x='"+x+"' y='"+y+"'/>"; // center
-            	html+="<use id='sizer1' href='#sizer' x='"+(x-w/2)+"' y='"+(y-h/2)+"'/>"; // top/left
-            	html+="<use id='sizer2' href='#sizer' x='"+(x+w/2)+"' y='"+(y-h/2)+"'/>"; // top/right
-            	html+="<use id='sizer3' href='#sizer' x='"+(x-w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/left
-            	html+="<use id='sizer4' href='#sizer' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/right
+            	// html+="<use id='sizer1' href='#sizer' x='"+(x-w/2)+"' y='"+(y-h/2)+"'/>"; // top/left JUST USE 1 SIZER
+            	// html+="<use id='sizer2' href='#sizer' x='"+(x+w/2)+"' y='"+(y-h/2)+"'/>"; // top/right
+            	// html+="<use id='sizer3' href='#sizer' x='"+(x-w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/left
+            	html+="<use id='sizer1' href='#sizer' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/right WAS sizer4
             	getElement('handles').innerHTML+=html;
             	setSizes('box',el.getAttribute('spin'),w,h);
             	showInfo(true,(w==h)?'CIRCLE':'OVAL',el.getAttribute('layer'));
@@ -4987,10 +5025,10 @@ function setLayerVisibility() {
     	// console.log('save layer '+i+': '+layers[i].name+' visible: '+layers[i].show);
     	data.layers[i].name=layers[i].name;
     	data.layers[i].show=layers[i].show;
-    	// data.layers[i].checked=layers[i].checked;
+    	data.layers[i].checked=getElement('layer'+i).checked;
     }
 	var json=JSON.stringify(data);
-	// console.log('layers JSON: '+json);
+	console.log('layers JSON: '+json);
 	window.localStorage.setItem('layers',json);
 }
 function setLineType(g) {
@@ -5197,7 +5235,7 @@ function showInfo(visible,type,layer,hint) {
 	getElement('info').style.top='0px';
 	if(!hint) getElement('info').style.height='30px';
 	else {
-		// getElement('info').style.height='50px';
+		getElement('info').style.height='50px';
 		getElement('hint').innerText=hint;
 		setTimeout(function(){getElement('info').style.height='30px';},10000);
 	}

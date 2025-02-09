@@ -67,10 +67,31 @@
                    	<stop offset='100%' stop-color='blue' stop-opacity="0"/>
                	</radialGradient>
 		    	<g id='sets'></g>
+		    	<pattern id='pattern0' width='4' height='2' patternUnits='userSpaceOnUse'><rect x="0" y="1" width="4" height="0.5" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern1' width='4' height='2' patternUnits='userSpaceOnUse'><rect x="0" y="1" width="4" height="1" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern2' width='4' height='4' patternUnits='userSpaceOnUse'><rect x="0" y="2" width="4" height="2" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern3' width='4' height='2' patternUnits='userSpaceOnUse' patternTransform='rotate(90)'><rect x="0" y="1" width="4" height="0.5" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern4' width='4' height='2' patternUnits='userSpaceOnUse' patternTransform='rotate(90)'><rect x="0" y="1" width="4" height="1" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern5' width='4' height='4' patternUnits='userSpaceOnUse' patternTransform='rotate(90)'><rect x="0" y="2" width="4" height="2" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern6' width='4' height='2' patternUnits='userSpaceOnUse' patternTransform='rotate(-45)'><rect x="0" y="1" width="4" height="0.5" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern7' width='4' height='2' patternUnits='userSpaceOnUse' patternTransform='rotate(-45)'><rect x="0" y="1" width="4" height="1" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern8' width='4' height='4' patternUnits='userSpaceOnUse' patternTransform='rotate(-45)'><rect x="0" y="2" width="4" height="2" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern9' width='4' height='2' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'><rect x="0" y="1" width="4" height="0.5" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern10' width='4' height='2' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'><rect x="0" y="1" width="4" height="1" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern11' width='4' height='4' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'><rect x="0" y="2" width="4" height="2" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern12' width='2' height='2' patternUnits='userSpaceOnUse'><rect x="0" y="1" width="2" height="0.5" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern13' width='2' height='2' patternUnits='userSpaceOnUse'><rect x="0" y="1" width="2" height="1" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern14' width='4' height='4' patternUnits='userSpaceOnUse'><rect x="0" y="2" width="4" height="2" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern15' width='2' height='2' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'><rect x="0" y="1" width="2" height="0.5" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern16' width='2' height='2' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'><rect x="0" y="1" width="2" height="1" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern17' width='4' height='4' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'><rect x="0" y="2" width="4" height="2" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern18' width='1' height='1' patternUnits='userSpaceOnUse'><rect x="0.25" y="0.25" width="0.5" height="0.5" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern19' width='2' height='2' patternUnits='userSpaceOnUse'><rect x="0.5" y="0.5" width="1" height="1" stroke="none" fill="#000"></rect></pattern>'
+		    	<pattern id='pattern20' width='4' height='4' patternUnits='userSpaceOnUse'><rect x="0" y="0" width="3" height="3" stroke="none" fill="#000"></rect></pattern>'
 	 		</defs>
 			<g id='dwg' clip-path="url(#clipper)" draggable='false'></g>
 	    	<g id='selection'></g>
-	    	<g id='handles'></g>
+	    	<!--g id='handles'></g-->
 		    <g id='blue'>
 		    	<g id='datumSet'>
 	            	<use id='datum1' href='#datum' x='0' y='0'/>
@@ -86,6 +107,7 @@
 		           	<line class='blue' id='blueDim' x1='0' y1='0' x2='-10' y2='-10' marker-start='url(#dimStart)' marker-end='url(#dimEnd)' stroke='blue' stroke-width='0.25' fill='none'/>
 	            </g>
 		   	</g>
+		   	<g id='handles'></g>
 		</svg>
 	</div>
     <div id='tools'>
@@ -150,7 +172,7 @@
     	<b>LAYERS</b>
     	<ul id='layerList'>
     		<li>
-    			<input type='radio' id='layer0' name='layerChoice' class='layerChooser' value='0' checked>0
+    			<input type='radio' id='layer0' name='layerChoice' class='layerChooser' value='0' checked='checked'>0
     			<input type='text' id='layerName0' class='layerName'>
     			<input type='checkbox' id='layerCheck0' class='layerCheck'>
     		</li>
@@ -201,6 +223,7 @@
     			
     		</li>
     	</ul>
+    	<input type='checkbox' id='thisLayerOnly' class='layerCheck'>edit current layer only
     </div>
     <div id='docDialog' class='dialog'>
         <p><b>DRAWING:</b> <span id='drawingName'></span></p>
@@ -407,7 +430,7 @@
     </div>
     <div id='joinDialog' class='dialog'>
         <button id='confirmJoin'>JOIN</button>
-        <p>name: <input type='text' id='setName'/>.json</p>
+        <p>name: <input type='text' id='setName'/></p>
     </div>
     <div id='colorPicker' class='dialog'>
     	<svg width='450' height='175'>
