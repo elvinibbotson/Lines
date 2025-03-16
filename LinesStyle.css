@@ -332,6 +332,10 @@ li {
 #joinButton {
     background: url(svg/set.svg) center center no-repeat;
 }
+#returnButton {
+    background: url(svg/up.svg) center center no-repeat;
+    transform: rotate(270deg);
+}
 #spin {
     width: 2em;
 }

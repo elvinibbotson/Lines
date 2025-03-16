@@ -27,6 +27,7 @@ var h=0;
 var datum1={'x':0,'y':0,'n':0};
 var datum2={'x':0,'y':0,'n':0};
 var offset={'x':0,'y':0};
+var spinOffset={'x':0,'y':0};
 var arc={};
 var dim={};
 var selectionBox={}; // for box select
@@ -34,7 +35,9 @@ var selection=[]; // list of elements in selectionBox
 var selectedPoints=[]; // list of selected points in line or shape
 var anchor=false; // flags existance of anchor
 var db=null; // indexed database holding SVG elements
-var nodes=[]; // array of nodes each with x,y coordinates and element ID
+var nodes=[]; // array of nodes each with x,y coordinates and element ID+n
+var elNodes=[]; // array of nodes for selected element
+var node=0; // node number (0-9) within selected element
 var dims=[]; // array of links between elements and dimensions
 var layers=[]; // array of layer objects
 var layer=0;
@@ -42,8 +45,8 @@ var thisLayerOnly=false; // limit select & edit to current layer?
 var element=null; // current element
 var elID=null; // id of current element
 var memory=[]; // holds element states to allow undo
-var node=0; // node number (0-9) within selected element
 var blueline=null; // bluePolyline
+var path=''; // bluePath definition
 var set=null; // current set
 var setID=null; // id of current set
 var lineType='solid'; // default styles
@@ -490,10 +493,10 @@ getElement('imageButton').addEventListener('click',async function() {
 	showDialog('imageDialog',true);
 });
 getElement('setList').addEventListener('change',function() {
-    console.log('choose '+event.target.value);
+    // console.log('choose '+event.target.value);
     setID=event.target.value;
-    console.log('set '+setID+' picked');
-	console.log('place set '+setID);
+    // console.log('set '+setID+' picked');
+	// console.log('place set '+setID);
     var graph={};
 	graph.type='set';
 	graph.name=setID;
@@ -595,6 +598,7 @@ getElement('backButton').addEventListener('click',function() {
     var previousID=previousElement.getAttribute('id');
     getElement('dwg').insertBefore(element,previousElement); // move back in drawing...
     swopGraphs(previousID,element.id); // ...and in database
+    element.id--;
 });
 getElement('forwardButton').addEventListener('click',function() {
     var nextElement=element.nextSibling;
@@ -603,9 +607,10 @@ getElement('forwardButton').addEventListener('click',function() {
         return;
     }
     var nextID=nextElement.getAttribute('id');
+    // console.log('bring '+type(element)+'('+element.id+') in front of '+type(nextElement)+'('+nextID+')');
     getElement('dwg').insertBefore(nextElement,element); // bring forward in drawing.
-    swopGraphs(element.id,nextID); // ...and in database
-    // drawOrder(); // update drawing order
+	swopGraphs(element.id,nextID); // ...and in database
+    element.id++;
 });
 getElement('moveButton').addEventListener('click',function() {
     // console.log('move '+type(element));
@@ -652,7 +657,7 @@ getElement('spinButton').addEventListener('click',function() {
 getElement('confirmSpin').addEventListener('click',function() {
     var spin=getValue('spinAngle'); // Number(getElement('spinAngle').value);
     if(selection.length<1) selection.push(elID);
-    console.log('spin '+selection.length+' elements by '+spin+' degrees');
+    // console.log('spin '+selection.length+' elements by '+spin+' degrees');
     re('member');
     var axis=null;
     if(anchor) { // spin around an anchor
@@ -681,11 +686,11 @@ getElement('confirmSpin').addEventListener('click',function() {
         axis.x=(minX+maxX)/2;
         axis.y=(minY+maxY)/2;
     }
-    if(axis) console.log('axis: '+axis.x+','+axis.y); else console.log('no axis');
+    // if(axis) console.log('axis: '+axis.x+','+axis.y); else console.log('no axis');
     while(selection.length>0) {
         element=getElement(selection.pop());
         elID=element.id;
-        console.log('spin '+type(element));
+        // console.log('spin '+type(element));
         var ox=0; // element origin
         var ox=0;
         switch(type(element)) { // elements spin around origin
@@ -709,9 +714,9 @@ getElement('confirmSpin').addEventListener('click',function() {
                 oy=parseInt(element.getAttribute('cy'));
         }
         var netSpin=parseInt(element.getAttribute('spin'));
-        console.log('change spin from '+netSpin);
+        // console.log('change spin from '+netSpin);
         netSpin+=spin;
-        console.log('to '+netSpin);
+        // console.log('to '+netSpin);
         element.setAttribute('spin',netSpin);
         updateGraph(elID,['spin',netSpin]);
         setTransform(element);
@@ -1094,18 +1099,21 @@ getElement('confirmDouble').addEventListener('click',function() {
                 p1.y=points[i+1].y;
                 // console.log('segment '+i+' '+p.x+','+p.y+' to '+p1.x+','+p1.y);
                 if(p.x==p1.x) { // vertical
+                	console.log('vertical');
                     a='v';
                     if((p1.y-p.y)>0) pts[i].x=pts[i+1].x=p.x-d;
                     else pts[i].x=pts[i+1].x=p.x+d;
                     if(i<1) pts[0].y=p.y; // start point
                 }
                 else if(p.y==p1.y) { // horizontal
+                	console.log('horizontal');
                     a='h';
                     if((p1.x-p.x)>0) pts[i].y=pts[i+1].y=p.y+d;
-                    else pts[i].y=p[i+1].y=p.y-d;
+                    else pts[i].y=pts[i+1].y=p.y-d;
                     if(i<1) pts[0].x=p.x; // start point
                 }
                 else { // sloping
+                	console.log('sloping');
                     a=((p1.y-p.y)/(p1.x-p.x)); // slope of line (dy/dx)
                     n=Math.atan((p1.x-p.x)/(p1.y-p.y)); // angle of normal to line
                     // console.log('line slope: '+a+'; normal: '+(180*n/Math.PI));
@@ -1118,7 +1126,7 @@ getElement('confirmDouble').addEventListener('click',function() {
                         p.y-=d*Math.sin(n);
                     }
                     b=p.y-a*p.x;
-                    // console.log('new segment function: y='+a+'.x+'+b);
+                    console.log('new segment function: y='+a+'.x+'+b);
                     if(i<1) {
                         pts[0].x=p.x;
                         pts[0].y=p.y;
@@ -1137,13 +1145,15 @@ getElement('confirmDouble').addEventListener('click',function() {
                 i++;
             }
             // end point...
-            // console.log('end point is point '+i+' '+p1.x+','+p1.y);
+            console.log('end point is point '+i+' '+p1.x+','+p1.y);
             if(a0=='h') { // last segment horizontal
                 pts[i].x=p1.x;
-                pts[i].y=p1.y+d;  // OR - ?
+                if(p1.x>p.x) pts[1].y=p1.y+d;
+                else pts[i].y=p1.y-d;
             }
             else if(a0=='v') { // last segment vertical
-                pts[i].x=p1.x+d; // OR - ?
+            	if(p1.y>p.y) pts[1].x=p1.x-d;
+                else pts[i].x=p1.x+d;
                 pts[i].y=p1.y;
             }
             else { // last segment sloping
@@ -1453,6 +1463,7 @@ getElement('confirmJoin').addEventListener('click',function() {
     addSet(json);
     showDialog('joinDialog',false);
 });
+getElement('returnButton').addEventListener('click',cancel);
 // STYLES
 getElement('line').addEventListener('click',function() {
     showDialog('stylesDialog',true);
@@ -1601,7 +1612,7 @@ getElement('fillType').addEventListener('change',function() {
     		}
     		else { // solid or no fill
     			var ptn=getElement('pattern'+el.id); // attempt removal of any associated pattern
-    			var fill=ptn.firstChild.getAttribute('fill');
+    			// var fill=ptn.firstChild.getAttribute('fill');
     			if(ptn) ptn.remove();
 	        	el.setAttribute('fill',(filltype=='none')?'none':fillColor);
     		}
@@ -1762,9 +1773,17 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
     scr.y=Math.round(event.clientY);
     x=x0=Math.round(scr.x*scaleF/zoom+dwg.x);
     y=y0=Math.round(scr.y*scaleF/zoom+dwg.y);
+    // ADJUST FOR RESOLUTION AT SCALE - 1mm up to 1:10, 5mm at 1:20, 10mm at 1:50 and 25mm at 1:100
+    if(scale>10) { // for scales smaller than 1:10 adjust to nearest 5/10/25mm
+    	if(scale==50) res=10;
+    	else res=scale/4;
+    	x=x0=res*Math.round(x/res);
+    	y=y0=res*Math.round(y/res);
+    	// console.log('x0,y0 resolved to '+x+','+y);
+    }
     var val=event.target.id;
     // console.log('zoom: '+zoom+'; dwg.x: '+dwg.x);
-    // console.log('tap on '+scr.x+','+scr.y+'px - '+val+' x,y:'+x+','+y+' x0,y0: '+x0+','+y0);
+    console.log('tap on '+scr.x+','+scr.y+'px - '+val+' x,y:'+x+','+y+' x0,y0: '+x0+','+y0);
     if(val=='anchor')  { // move selected elements using anchor
         mode='move';
         hint('drag ANCHOR to MOVE selection');
@@ -1787,10 +1806,18 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
         getElement('blueBox').setAttribute('y',bounds.y);
         getElement('blueBox').setAttribute('width',bounds.width);
         getElement('blueBox').setAttribute('height',bounds.height);
+        console.log('box at '+bounds.x+','+bounds.y);
         getElement('guides').style.display='block';
         re('member');
         if(val.startsWith('mover')) {
             node=parseInt(val.substr(5)); // COULD GO AT START OF HANDLES SECTION
+            x=parseFloat(handle.getAttribute('x'));
+            y=parseFloat(handle.getAttribute('y'));
+            console.log('mover at '+x+','+y);
+            /* var n=nodes.filter(function(node) { // get nodes for selected element
+        		return (Math.floor(node.n/10)==element.id);
+    		}); */
+    		console.log(elNodes.length+' nodes');
             if(mode=='addPoint') { // add point after start-point
                 var points=element.points;
                 x=Math.round((Number(points[0].x)+Number(points[1].x))/2);
@@ -1807,66 +1834,63 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
                 showDialog('removeDialog',true);
                 return;
             }
-            // console.log('move using node '+node);
+            console.log('move using node '+node);
             mode='move';
             hint('drag to MOVE');
+            path=null;
             switch(type(element)) {
             	case 'curve':
                     x0=handle.getAttribute('x');
                     y0=handle.getAttribute('y');
-                    // console.log('handle at '+x0+','+y0);
-                    offset.x=bounds.x-x0;
-                    offset.y=bounds.y-y0;
+                    console.log('nodes...');
+                    for(var i=0;i<elNodes.length;i++) console.log('node '+i+': '+elNodes[i].x+','+elNodes[i].y);
+                    path='m '+(elNodes[0].x-x)+' '+(elNodes[0].y-y);
+                    for(i=1;i<elNodes.length;i++) {
+                    	path+=' l '+(elNodes[i].x-elNodes[i-1].x)+' '+(elNodes[i].y-elNodes[i-1].y);
+                    }
                     break;
                 case 'line':
                 case 'shape':
-                    x0=element.points[0].x;
-                    y0=element.points[0].y;
-                    offset.x=element.points[0].x-element.points[node].x;
-                    offset.y=element.points[0].y-element.points[node].y;
+                    // x0=element.points[0].x;
+                    // y0=element.points[0].y;
+                    path='m '+(elNodes[0].x-x)+' '+(elNodes[0].y-y);
+                    for(var i=1;i<elNodes.length;i++) {
+                    	path+=' l '+(elNodes[i].x-elNodes[i-1].x)+' '+(elNodes[i].y-elNodes[i-1].y);
+                    }
+                    // console.log('line path: '+path);
                     break;
                 case 'box':
-                    x0=element.getAttribute('x');
-                    y0=element.getAttribute('y');
-                    if(node<1) {
-                        offset.x=-w/2;
-                        offset.y=-h/2;
-                    }
-                    else {
-                        offset.x=(node%2<1)?-w:0;
-                        offset.y=(node>2)?-h:0;
-                    }
+                	// TRY THIS...
+                	x0=handle.getAttribute('x');
+                    y0=handle.getAttribute('y');
+                	// offset.x=x-Number(element.getAttribute('x'));
+                	// offset.y=y-Number(element.getAttribute('y'));
+                	//
+                    path='m '+(elNodes[0].x-x)+' '+(elNodes[0].y-y)+' l '+(elNodes[2].x-elNodes[0].x)+' '+(elNodes[2].y-elNodes[0].y);
+                    path+=' l '+(elNodes[8].x-elNodes[2].x)+' '+(elNodes[8].y-elNodes[2].y);
+                    path+=' l '+(elNodes[6].x-elNodes[8].x)+' '+(elNodes[6].y-elNodes[8].y);
+                    path+=' l '+(elNodes[0].x-elNodes[6].x)+' '+(elNodes[0].y-elNodes[6].y);
+                    // console.log('box path: '+path);
                     break;
                 case 'oval':
-                    x0=element.getAttribute('cx');
-                    y0=element.getAttribute('cy');
-                    if(node<1) {
-                        offset.x=-w/2;
-                        offset.y=-h/2;
-                    }
-                    else {
-                        offset.x=(node%2<1)?-w:0;
-                        offset.y=(node>2)?-h:0;
-                    }
+                    x0=parseInt(element.getAttribute('cx'));
+                    y0=parseInt(element.getAttribute('cy'));
+                    var rx=parseInt(element.getAttribute('rx'));
+        			var ry=parseInt(element.getAttribute('ry'));
+                    var spin=parseInt(element.getAttribute('spin')); // degrees
+                    path='m '+(elNodes[1].x-x)+' '+(elNodes[1].y-y); // move to node 1...
+                    path+=' a '+rx+' '+ry+' '+spin+' 1 1 '+(elNodes[4].x-elNodes[1].x)+' '+(elNodes[4].y-elNodes[1].y); // ...and draw half oval clockwise to node 4...
+                    path+=' a '+rx+' '+ry+' '+spin+' 1 1 '+(elNodes[1].x-elNodes[4].x)+' '+(elNodes[1].y-elNodes[4].y); // ...then other half back to noded 1
+                    // console.log('oval path: '+path);
                     break;
                 case 'arc':
-                    var d=element.getAttribute('d');
-                    getArc(d);
-                    x0=arc.cx;
-                    y0=arc.cy;
-                    switch(node) {
-                        case 0:
-                            offset.x=bounds.x-x0;
-                            offset.y=bounds.y-y0;
-                            break;
-                        case 1:
-                            offset.x=bounds.x-arc.x1;
-                            offset.y=bounds.y-arc.y1;
-                            break;
-                        case 2:
-                            offset.x=bounds.x-arc.x2;
-                            offset.y=bounds.y-arc.y2;
-                    }
+                    x0=parseInt(element.getAttribute('cx'));
+                    y0=parseInt(element.getAttribute('cy'));
+                    getArc(element.getAttribute('d'));
+                    // console.log('arc: a '+arc.r+' '+arc.r+' '+' 0 '+arc.major+' '+arc.sweep+' '+arc.x2+' '+arc.y2);
+                    path='m '+(arc.x1-x)+' '+(arc.y1-y); // move to start of x-arc
+                    path+=' a '+arc.r+' '+arc.r+' '+' 0 '+arc.major+' '+arc.sweep+' '+(arc.x2-arc.x1)+' '+(arc.y2-arc.y1);
+                    // console.log('arc path: '+path);
                     break;
                 case 'text':
                     x0=element.getAttribute('x');
@@ -1894,22 +1918,18 @@ getElement('graphic').addEventListener('pointerdown',function(e) {
                 case 'set':
                     x0=element.getAttribute('x');
                     y0=element.getAttribute('y');
-                case 'box':
+                case 'image': // WAS BOX!!
                     x0=element.getAttribute('x');
                     y0=element.getAttribute('y');
-                    if(node<1) {
-                        offset.x=-w/2;
-                        offset.y=-h/2;
-                    }
-                    else {
-                        offset.x=(node%2<1)?-w:0;
-                        offset.y=(node>2)?-h:0;
-                    }
+                    offset.x=(node<1)?(-w/2):0;
+                    offset.y=(node<1)?(-h/2):0;
                     break;
             }
-            // console.log('offsets: '+offset.x+','+offset.y);
-            getElement('blueBox').setAttribute('x',x+offset.x);
-            getElement('blueBox').setAttribute('y',y+offset.y);
+            if(!path) {
+            	console.log('offsets: '+offset.x+','+offset.y);
+            	getElement('blueBox').setAttribute('x',x+offset.x);
+            	getElement('blueBox').setAttribute('y',y+offset.y);
+            }
             getElement('guides').style.display='block';
             getElement('graphic').addEventListener('pointermove',drag);
             return;
@@ -2115,6 +2135,14 @@ function drag(event) {
     x=Math.round(scr.x*scaleF/zoom+dwg.x);
     y=Math.round(scr.y*scaleF/zoom+dwg.y);
     if((Math.abs(x-x0)<snapD)&&(Math.abs(y-y0)<snapD)) return; // ignore tiny drag
+    // ADJUST FOR RESOLUTION AT SCALE - 1mm up to 1:10, 5mm at 1:20, 10mm at 1:50 and 25mm at 1:100
+    if(scale>10) { // for scales smaller than 1:10 adjust to nearest 5/10/25mm
+    	if(scale==50) res=10;
+    	else res=scale/4;
+    	x=res*Math.round(x/res);
+    	y=res*Math.round(y/res);
+    	// console.log('x,y resolved to '+x+','+y);
+    }
     if(mode!='arcEnd') {
         snap=snapCheck(); // snap to nearby nodes, datum,...
         if(!snap) {
@@ -2132,15 +2160,16 @@ function drag(event) {
     	case 'curve':
             dx=x-x0;
             dy=y-y0;
-            var d=Math.sqrt(dx*dx+dy*dy);
-            if(d>6) { // WAS d>10
-                // console.log('add point');
+            var d=Math.sqrt(dx*dx+dy*dy)*scale;
+            if((d>10*scale)&&(blueline.points.length<10)) {
+                console.log('add point');
                 var point=getElement('svg').createSVGPoint();
                 point.x=x;
                 point.y=y;
                 blueline.points.appendItem(point);
                 x0=x;
                 y0=y;
+                if(blueline.points.length>9) hint('MAXIMUM 10 NODES');
             }
             break;
         case 'move':
@@ -2150,8 +2179,16 @@ function drag(event) {
                 getElement('selection').setAttribute('transform','translate('+dx+','+dy+')');
             }
             else { // drag  single element
-                getElement('blueBox').setAttribute('x',Number(x)+Number(offset.x));
-                getElement('blueBox').setAttribute('y',Number(y)+Number(offset.y));
+            	console.log('move '+type(element));
+            	if(path) { // moving curve, line/shape, box, oval or arc
+            		var d='M '+Number(x)+' '+Number(y)+path;
+            		console.log('bluePath: '+d);
+            		getElement('bluePath').setAttribute('d',d);
+            	}
+            	else { // moving text, dimension, image, set
+            		getElement('blueBox').setAttribute('x',Number(x)+Number(offset.x));
+               		getElement('blueBox').setAttribute('y',Number(y)+Number(offset.y));
+            	}
             }
             if(anchor) {
                 getElement('anchor').setAttribute('x',x);
@@ -2161,8 +2198,8 @@ function drag(event) {
             break;
         case 'boxSize':
             var aspect=w/h;
-            dx=(node%2<1)?(x-x0):(x0-x);
-            dy=(node>2)?(y-y0):(y0-y);
+            dx=x-x0;
+            dy=y-y0;
             if(Math.abs(dx)<(snapD*2)) dx=0; // snap to equal width,...
             else if(Math.abs(dy)<(snapD*2)) dy=0; // ...equal height,... 
             else if((w+dx)/(h+dy)>aspect) dy=dx/aspect; // ...or equal proportion
@@ -2171,8 +2208,6 @@ function drag(event) {
             y=parseInt(element.getAttribute('y'));
             w=parseInt(element.getAttribute('width'));
             h=parseInt(element.getAttribute('height'));
-            if(node%2>0) getElement('blueBox').setAttribute('x',(x-dx)); // sizing left edge
-            if(node<3) getElement('blueBox').setAttribute('y',(y-dy)); // sizing top edge
             w+=dx;
             h+=dy;
             getElement('blueBox').setAttribute('width',w);
@@ -2181,8 +2216,8 @@ function drag(event) {
             break;
         case 'ovalSize':
         	var aspect=w/h;
-            dx=(node%2<1)?(x-x0):(x0-x);
-            dy=(node>2)?(y-y0):(y0-y);
+        	dx=x-x0;
+            dy=y-y0;
             if(Math.abs(dx)<(snapD*2)) dx=0; // snap to equal width,...
             else if(Math.abs(dy)<(snapD*2)) dy=0; // ...equal height,... 
             else if((w+dx)/(h+dy)>aspect) dy=dx/aspect; // ...or equal proportion
@@ -2191,12 +2226,14 @@ function drag(event) {
             y=parseInt(element.getAttribute('cy'));
             w=parseInt(element.getAttribute('rx'))*2; // overall size
             h=parseInt(element.getAttribute('ry'))*2;
-            x-=w/2; // left
-            y-=h/2; // top
-            if(node%2>0) getElement('blueBox').setAttribute('x',(x-dx)); // sizing left edge
-            if(node<3) getElement('blueBox').setAttribute('y',(y-dy)); // sizing top edge
-            w+=dx;
-            h+=dy;
+            x-=w/2; // top/left
+            y-=h/2;
+            x-=dx;
+            y-=dy;
+            w+=dx*2;
+            h+=dy*2;
+            getElement('blueBox').setAttribute('x',x);
+            getElement('blueBox').setAttribute('y',y);
             getElement('blueBox').setAttribute('width',w);
             getElement('blueBox').setAttribute('height',h);
             setSizes('oval',null,w,h);
@@ -2298,24 +2335,28 @@ function drag(event) {
             if((x==x0)&&(y==y0)) break;
             if(arc.sweep==null) {
                 if(Math.abs(y-arc.cy)>Math.abs(x-arc.cx)) { // get sweep from horizontal movement
-                    // console.log('get sweep from x - x0: '+x0+'; x: '+x);
+                    console.log('get sweep from x - x0: '+x0+'; x: '+x);
                     if(y<arc.cy) arc.sweep=(x>x0)?1:0; // above...
                     else arc.sweep=(x<x0)?1:0; // ...or below centre of arc
                 }
                 else {
-                    // console.log('get sweep from y');
+                    console.log('get sweep from y');
                     if(x<arc.cx) arc.sweep=(y<y0)?1:0; // left or...
                     else arc.sweep=(y>y0)?1:0; // ...right of centre of arc
                 }
-                // console.log('ARC sweep SET TO '+arc.sweep);
+                console.log('ARC sweep: '+arc.sweep);
             }
             w=x-arc.cx;
             h=y-arc.cy;
+            console.log('w:'+w+' h:'+h);
             arc.a2=Math.atan(h/w); // radians clockwise from x-axis ????????????
             if(w<0) arc.a2+=Math.PI; // from -PI/2 to 1.5PI
             arc.a2+=Math.PI/2; // 0 to 2PI
+            console.log('cx:'+arc.cx+' r:'+arc.r+'a2:'+arc.a2+'radians');
             arc.x2=Math.round(arc.cx+arc.r*Math.sin(arc.a2));
+            console.log('x2:'+arc.x2);
             arc.y2=Math.round(arc.cy-arc.r*Math.cos(arc.a2));
+            console.log('y2:'+arc.y2);
             arc.a2*=180/Math.PI; // 0-360 degrees
             x=arc.x2;
             y=arc.y2;
@@ -2378,8 +2419,9 @@ getElement('graphic').addEventListener('pointerup',function(e) {
     scr.y=Math.round(event.clientY);
     // console.log('pointer up at '+scr.x+','+scr.y+' ('+x+','+y+') mode: '+mode);
     getElement('graphic').removeEventListener('pointermove',drag);
+    getElement('bluePath').setAttribute('d','');
     snap=snapCheck();
-    // console.log('snap - x:'+snap.x+' y:'+snap.y+' n:'+snap.n);
+    console.log('snap - x:'+snap.x+' y:'+snap.y+' n:'+snap.n);
     if(mode.startsWith('movePoint')) { // move polyline/polygon point
         getElement('handles').innerHTML='';
         // console.log('move point '+node+' on '+type(element));
@@ -2426,6 +2468,7 @@ getElement('graphic').addEventListener('pointerup',function(e) {
     }
     else switch(mode) {
         case 'move':
+        	console.log('move from '+x0+','+y0+' to '+x+','+y);
             getElement('handles').innerHTML='';
             getElement('blueBox').setAttribute('width',0);
             getElement('blueBox').setAttribute('height',0);
@@ -2443,17 +2486,24 @@ getElement('graphic').addEventListener('pointerup',function(e) {
             }
             else selection.push(elID); // move single element
             switch(type(element)) {
-                case 'line':
-                case 'shape':
-                case 'box':
+                // case 'line':
+                // case 'shape':
+                // case 'box':
                 case 'text':
                 case 'image':
                     dx=x-x0+offset.x;
                     dy=y-y0+offset.y;
+                    var spin=element.getAttribute('spin');
+                    spin='rotate('+spin+','+x+','+y+')';
+                    // element.setAttribute('transform',spin);
+                    // updateGraph(element.id,['transform',spin]);
                     break;
-                case 'oval':
-                    dx=x-x0+w/2+offset.x;
-                    dy=y-y0+h/2+offset.y;
+                // case 'oval':
+                	var rx=Number(element.getAttribute('rx'));
+                	var ry=Number(element.getAttribute('ry'));
+                	dx=Number(x-x0);
+                	dy=Number(y-y0);
+                	console.log('move by '+dx+','+dy);
                     break;
                 case 'arc':
                     // console.log('moved arc - node is '+node);
@@ -2482,12 +2532,16 @@ getElement('graphic').addEventListener('pointerup',function(e) {
                 // console.log('move element '+elID);
                 element=getElement(elID);
                 move(element,dx,dy);
+                if(spin) {
+                	element.setAttribute('transform',spin);
+                    updateGraph(element.id,['transform',spin]);
+                }
             }
             getElement('selection').setAttribute('transform','translate(0,0)');
             cancel();
             break;
         case 'boxSize':
-            // console.log('pointer up - moved: '+dx+'x'+dy);
+            console.log('pointer up - moved: '+dx+'x'+dy);
             if((Math.abs(dx)<snapD)&&(Math.abs(dy)<snapD)) { // node tapped - add mover
                 // console.log('TAP - add mover at node '+node);
                 var html="<use id='mover"+node+"' href='#mover' x='"+x+"' y='"+y+"'/>";
@@ -2621,11 +2675,11 @@ getElement('graphic').addEventListener('pointerup',function(e) {
             // console.log(points.length+' points');
             var graph={};
 	        graph.type='curve';
-	        graph.points='';
+	        graph.points=''; // points stored as string in database
 	        for(var i=0;i<points.length-1;i++) {
 	        	graph.points+=(points[i].x+','+points[i].y+' ');
 	        }
-	        // console.log('graph.points: '+graph.points);
+	        console.log('graph.points: '+graph.points);
 	        graph.spin=0;
 	        graph.stroke=lineColor;
 	        graph.lineW=pen*scale;
@@ -3044,7 +3098,7 @@ getElement('graphic').addEventListener('pointerup',function(e) {
             showInfo(false);
         case 'edit':
             var el=event.target;
-            // console.log('pointer up on element '+el.id+' parent: '+el.parentNode.id);
+            console.log('pointer up on element '+el.id+' parent: '+el.parentNode.id);
             var hit=null;
             if(el.parentNode.id=='graphic') { // drawing background - check 10x10px zone
                 // console.log('nowt! - search locality');
@@ -3066,11 +3120,11 @@ getElement('graphic').addEventListener('pointerup',function(e) {
                 	e+=0.5;
                 }
             }
-            else while(el.parentNode.id!='dwg') {
+            else while((el.parentNode.id!='dwg')&&(el.parentNode.id!='handles')) {
                 el=el.parentNode; // sets have elements within groups in svg container
             }
             // console.log('parent is '+el.parentNode.id);
-            if(el.parentNode.id=='dwg') hit=el.id;
+            if((el.parentNode.id=='dwg')||(el.parentNode.id=='handles')) hit=el.id;
             if(hit) { // NEW - CHECK IF ONLY EDITING CURRENT LAYER
             	// console.log('HIT: '+hit+' type: '+type(el)+' layer '+el.getAttribute('layer')+'; this layer only is '+thisLayerOnly);
             	if(thisLayerOnly && el.getAttribute('layer')!=layer) hit=null; // 
@@ -3090,7 +3144,10 @@ getElement('graphic').addEventListener('pointerup',function(e) {
                     	selection.push(hit);
                     	if(selection.length<2) { // only item selected
                         	element=getElement(hit);
-                        	select(element,false);
+                    		// SINGLE ELEMENT SELECTED - IS IT A NODE?
+                        	var snap=snapCheck();
+                        	if(snap) console.log('SNAP! element '+element.id+'; snap: element '+Math.floor(snap.n/10)+' node '+snap.n%10+' at '+snap.x+','+snap.y);
+                        	select(element,false,snap);
                     	}
                     	else { // multiple selection
                         	// console.log('add '+type(el)+' '+el.id+' to multiple selection');
@@ -3361,8 +3418,8 @@ getElement('undoButton').addEventListener('click',function() {
 });
 // FUNCTIONS
 function addGraph(graph) {
-    console.log('add '+graph.type+' element - spin: '+graph.spin+' to layer '+graph.layer);
-    console.log('fill: '+graph.fillType+', '+graph.fill);
+    // console.log('add '+graph.type+' element - spin: '+graph.spin+' to layer '+graph.layer);
+    // console.log('fill: '+graph.fillType+', '+graph.fill);
     var request=db.transaction('graphs','readwrite').objectStore('graphs').add(graph);
     request.onsuccess=function(event) {
         // console.log('result: '+event.target.result);
@@ -3480,7 +3537,7 @@ function clearDialog(dialog) {
 }
 function curvePath(pts) {
 	// console.log('get path for '+pts.length+' points');
-	var d='M'+pts[0].x+','+pts[0].y; // move to point 0
+	var d='M '+pts[0].x+','+pts[0].y; // move to point 0
 	if(pts.length<3) d+=' L'+pts[1].x+','+pts[1].y; // 2 points - short straight line
 	else {
 	    var n=7; // vary n to adjust smoothness of curve - 7 seems a good compromise
@@ -3491,7 +3548,7 @@ function curvePath(pts) {
 	    c2.x=pts[1].x-dx/n; // first control point
 	    c2.y=pts[1].y-dy/n;
 	    d+=' Q'+c2.x+','+c2.y+' '+pts[1].x+','+pts[1].y; // first segment - quadratic curve
-	    // console.log('point 1 path: '+d);
+	    console.log('point 1 path: '+d);
 	    var i=2;
 	    while(i<pts.length-1) { // intermediate segments
 	        c1.x=pts[i-1].x+dx/n; // reflect previous control point
@@ -3507,7 +3564,7 @@ function curvePath(pts) {
 	    c1.y=pts[i-1].y+dy/n;
 	    d+=' S'+c1.x+','+c1.y+' '+pts[i].x+','+pts[i].y; // final segment - smooth cubic curve
 	}
-	// console.log('curve path: '+d);
+	console.log('curve path: '+d);
 	return d;
 }
 function getAngle(x0,y0,x1,y1) {
@@ -3521,7 +3578,7 @@ function getAngle(x0,y0,x1,y1) {
 }
 function getArc(d) {
     arc={};
-    // console.log('get arc from: '+d);
+    console.log('get arc from: '+d);
     var from=1;
     var to=d.indexOf(',');
     arc.cx=parseInt(d.substr(from,to));
@@ -3677,7 +3734,7 @@ function load() {
     transaction.oncomplete=function() {setLayers()};
 }
 function makeElement(g) {
-    // console.log('make '+g.type+' element '+g.id+' layer '+g.layer);
+    console.log('make '+g.type);
     var ns=getElement('svg').namespaceURI;
     switch(g.type) {
     	case 'curve':
@@ -3692,11 +3749,17 @@ function makeElement(g) {
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             el.setAttribute('spin',g.spin);
-            // console.log('curve points: '+g.points);
+            console.log('curve points: '+g.points);
             // console.log('path: '+curvePath(pointsArray(g.points)));
             el.setAttribute('d',curvePath(pointsArray(g.points)));
             if(g.spin!=0) setTransform(el); // apply spin MAY NOT WORK!!!
-            nodes.push({'x':g.points[0].x,'y':g.points[0].y,'n':Number(g.id*10+0)});
+            var points=g.points;
+            var points=pointsArray(g.points); // convert points list from string to array
+            console.log('points: '+points);
+            for(var i=0;i<points.length;i++) {
+            	console.log('node '+i+' at '+points[i].x+','+points[i].y);
+            	nodes.push({'x':points[i].x,'y':points[i].y,'n':Number(g.id*10+i)});
+            }
             break;
         case 'line':
             var el=document.createElementNS(ns,'polyline');
@@ -3712,7 +3775,7 @@ function makeElement(g) {
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
             el.setAttribute('fill','none');
             var points=el.points;
-            // console.log('line points: '+points);
+            console.log('line points: '+points);
             for(var i=0;i<points.length;i++) { // IF HAS SPIN - USE refreshNodes()?
             	var point=points.getItem(i);
                 nodes.push({'x':point.x,'y':point.y,'n':Number(g.id*10+i)});
@@ -3747,7 +3810,7 @@ function makeElement(g) {
             el.setAttribute('y',g.y);
             el.setAttribute('width',g.width);
             el.setAttribute('height',g.height);
-            el.setAttribute('rx',g.radius);
+            // el.setAttribute('rx',g.radius);
             el.setAttribute('spin',g.spin);
             el.setAttribute('stroke',g.stroke);
             el.setAttribute('stroke-width',g.lineW);
@@ -3756,12 +3819,15 @@ function makeElement(g) {
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
-            // console.log('made box'); // ADD NODES
-            nodes.push({'x':(Number(g.x)+Number(g.width/2)),'y':(Number(g.y)+Number(g.height/2)),'n':Number(g.id*10+4)}); // centre - node 0
-            nodes.push({'x':g.x,'y':g.y,'n':(g.id*10)}); // top/left - node 1
-            nodes.push({'x':(Number(g.x)+Number(g.width)),'y':g.y,'n':Number(g.id*10+1)}); // top/right - node 2
-            nodes.push({'x':g.x,'y':(Number(g.y)+Number(g.height)),'n':Number(g.id*10+3)}); // bottom/left - node 3
-            nodes.push({'x':(Number(g.x)+Number(g.width)),'y':(Number(g.y)+Number(g.height)),'n':Number(g.id*10+2)}); // bottom/right - node 4
+            nodes.push({'x':g.x,'y':g.y,'n':(g.id*10)}); // top/left - node 0
+            nodes.push({'x':(Number(g.x)+Number(g.width/2)),'y':g.y,'n':Number(g.id*10+1)}); // top/centre - node 1
+            nodes.push({'x':(Number(g.x)+Number(g.width)),'y':g.y,'n':Number(g.id*10+2)}); // top/right - node 2
+            nodes.push({'x':g.x,'y':(Number(g.y)+Number(g.height/2)),'n':Number(g.id*10+3)}); // centre/left - node 3
+            nodes.push({'x':(Number(g.x)+Number(g.width/2)),'y':(Number(g.y)+Number(g.height/2)),'n':Number(g.id*10+4)}); // centre - node 4
+            nodes.push({'x':(Number(g.x)+Number(g.width)),'y':(Number(g.y)+Number(g.height/2)),'n':Number(g.id*10+5)}); // centre/right - node 5
+            nodes.push({'x':g.x,'y':(Number(g.y)+Number(g.height)),'n':Number(g.id*10+6)}); // bottom/left - node 6
+            nodes.push({'x':(Number(g.x)+Number(g.width/2)),'y':(Number(g.y)+Number(g.height)),'n':Number(g.id*10+7)}); // bottom/centre - node 7
+            nodes.push({'x':(Number(g.x)+Number(g.width)),'y':(Number(g.y)+Number(g.height)),'n':Number(g.id*10+8)}); // bottom/right - node 8
             if(g.spin!=0) setTransform(el);
             break;
         case 'oval':
@@ -3779,13 +3845,11 @@ function makeElement(g) {
             el.setAttribute('fillType',g.fillType);
             el.setAttribute('fill',g.fill);
             if(g.opacity<1) el.setAttribute('fill-opacity',g.opacity);
-            // console.log('made oval'); // ADD NODES
-            nodes.push({'x':g.cx,'y':g.cy,'n':(g.id*10)}); // centre: node 0
-            nodes.push({'x':(g.cx-g.rx),'y':(g.cy-g.ry),'n':Number(g.id*10+1)}); // ...top/left: node 1
-            nodes.push({'x':Number(g.cx)+Number(g.rx),'y':(g.cy-g.ry),'n':Number(g.id*10+2)}); // top/right: node 2
-            nodes.push({'x':(g.cx-g.rx),'y':Number(g.cy)+Number(g.ry),'n':Number(g.id*10+3)}); // bottom/left: node 3
-            nodes.push({'x':Number(g.cx)+Number(g.rx),'y':Number(g.cy)+Number(g.ry),'n':Number(g.id*10+4)}); // bottom/right: node 4
-            // console.log('oval nodes added');
+            nodes.push({'x':g.cx,'y':g.cy,'n':(g.id*10)}); // centre - node 0
+            nodes.push({'x':g.cx,'y':Number(g.cy-g.ry),'n':Number(g.id*10+1)}); // ...top/centre - node 1
+            nodes.push({'x':Number(g.cx-g.rx),'y':g.cy,'n':Number(g.id*10+2)}); // centre/left - node 2
+            nodes.push({'x':Number(g.cx)+Number(g.rx),'y':g.cy,'n':Number(g.id*10+3)}); // centre/right - node 3
+            nodes.push({'x':g.cx,'y':Number(g.cy+g.ry),'n':Number(g.id*10+4)}); // bottom/centre - node 4
             if(g.spin!=0) setTransform(el);
             break;
         case 'arc':
@@ -3846,7 +3910,7 @@ function makeElement(g) {
                 d=Math.round(Math.sqrt(dx*dx+dy*dy));
                 a=Math.atan(dy/dx); // oblique dimension - angle in radians
             }
-            // console.log('dimension length: '+d+'; angle: '+a+' rad; nodes: '+g.n1+' '+g.n2);
+            console.log('dimension length: '+d+'; angle: '+a+' rad; nodes: '+g.n1+' '+g.n2);
             var x1=Number(g.x1); // start point/anchor of dimension line
             var y1=Number(g.y1);
             var o=parseInt(g.offset);
@@ -3857,7 +3921,7 @@ function makeElement(g) {
                 y1+=o*Math.cos(a);
             }
             a*=180/Math.PI; // angle in degrees
-            // console.log('create dimension line from '+x1+','+y1+' length: '+d);
+            console.log('create dimension line from '+x1+','+y1+' length: '+d);
             var el=document.createElementNS(ns,'g');
             el.setAttribute('id',g.id);
             el.setAttribute('transform','rotate('+a+','+x1+','+y1+')');
@@ -3886,12 +3950,13 @@ function makeElement(g) {
             dim.dim=g.id;
             dim.n1=g.n1;
             dim.n2=g.n2;
-            // console.log('add link - dim. '+dim.dim+' nodes: '+dim.n1+','+dim.n2);
+            console.log('add link - dim. '+dim.dim+' nodes: '+dim.n1+','+dim.n2);
             dims.push(dim);
-            // console.log('links added for dimension '+g.id);
-            for(var i=0;i<dims.length;i++) // console.log('link '+i+': dim:'+dims[i].dim+' nodes: '+dims[i].n1+','+dims[i].n2);
+            console.log('links added for dimension '+g.id);
+            // for(var i=0;i<dims.length;i++) // console.log('link '+i+': dim:'+dims[i].dim+' nodes: '+dims[i].n1+','+dims[i].n2);
             break;
         case 'set':
+        	console.log('add set');
             var el=document.createElementNS(ns,'use');
             el.setAttribute('id',g.id);
             el.setAttribute('href','#'+g.name);
@@ -3918,7 +3983,9 @@ function makeElement(g) {
             if((g.spin!=0)||(g.flip!=0)) setTransform(el);
             break;
     }
-    el.setAttribute('layer',g.layer);
+    el.setAttribute('layer',g.layer); // layers element appears on
+    // if(g.anchor) el.setAttribute('anchor',g.anchor);
+    // else el.setAttribute('anchor',0); // node used as element mover/anchor
     // console.log('element layer is '+el.getAttribute('layer'));
     if((g.type!='text')&&(g.type!='dim')&&(g.type!='set')&&(g.type!='image')) { // set style
     	// console.log('set style - fillType is '+g.fillType+'; fill is '+g.fill);
@@ -3965,14 +4032,20 @@ function move(el,dx,dy) {
 	        request.onsuccess=function(event) {
 	            var graph=request.result;
 	            // console.log('got graph '+graph.id);
-	            for(var i=0;i<graph.points.length;i++) {
-	                graph.points[i].x+=dx;
-	                graph.points[i].y+=dy;
+	            var points=pointsArray(graph.points);
+	            console.log(points.length+' points');
+	            for(var i=0;i<points.length;i++) {
+	                points[i].x+=dx;
+	                points[i].y+=dy;
 	            }
+	            graph.points=''; // points stored as string in database
+	        	for(i=0;i<points.length-1;i++) {
+	        		graph.points+=(points[i].x+','+points[i].y+' ');
+	        	}
 	            request=graphs.put(graph);
 	            request.onsuccess=function(event) {
-			        // console.log('graph '+el.id+' updated - starts at '+graph.points[0].x+','+graph.points[0].y);
-			        el.setAttribute('d',curvePath(graph.points)); // redraw curve element path
+			        console.log('graph '+el.id+' updated - starts at '+points[0].x+','+points[0].y);
+			        el.setAttribute('d',curvePath(points)); // redraw curve element path
 		        };
 		        request.onerror=function(event) {
 		            console.log("PUT ERROR updating graph "+id);
@@ -3981,7 +4054,7 @@ function move(el,dx,dy) {
             break;
         case 'line':
         case 'shape':
-            console.log('move all points by '+dx+','+dy);
+            // console.log('move all points by '+dx+','+dy);
             var pts='';
             for(var i=0;i<el.points.length;i++) {
                 el.points[i].x+=dx;
@@ -3989,7 +4062,7 @@ function move(el,dx,dy) {
                 pts+=el.points[i].x+','+el.points[i].y+' ';
             }
             el.setAttribute('points',pts);
-            console.log(element.points.length+' points adjusted');
+            // console.log(element.points.length+' points adjusted');
             updateGraph(el.id,['points',el.getAttribute('points')]);
             break;
         case 'box':
@@ -3997,22 +4070,19 @@ function move(el,dx,dy) {
         case 'image':
             var valX=parseInt(el.getAttribute('x'));
             valY=parseInt(el.getAttribute('y'));
-            // console.log('move by '+dx+','+dy+' from '+valX+','+valY);
             valX+=dx;
             valY+=dy;
-            // console.log('to '+valX+','+valY);
             el.setAttribute('x',valX);
 			el.setAttribute('y',valY);
-			// console.log('new position: '+el.getAttribute('x')+','+el.getAttribute('y'));
             updateGraph(el.id,['x',valX,'y',valY]);
             break;
         case 'oval':
-            // console.log('move oval by '+dx+','+dy);
+            console.log('move oval by '+dx+','+dy);
             var valX=parseInt(el.getAttribute('cx'));
-            valX+=dx;
+            valX+=Number(dx);
             el.setAttribute('cx',valX);
             valY=parseInt(el.getAttribute('cy'));
-            valY+=dy;
+            valY+=Number(dy);
             el.setAttribute('cy',valY);
             updateGraph(el.id,['cx',valX,'cy',valY]);
             break;
@@ -4057,7 +4127,8 @@ function pointsArray(points) {
 	// console.log(pts.length+' points');
 	return pts;
 }
-function re(op) { // op is 're-member' (memorise and show undo), 're-call' (reinstate and hide undo) or 're-wind' (hide undo)
+function re(op) {
+	// op is 're-member' (memorise and show undo), 're-call' (reinstate and hide undo) or 're-wind' (hide undo)
     // console.log('re'+op+'; '+selection.length+' selected items; '+memory.length+' memory items');
     // console.log('item 1: '+selection[0]);
     if(op=='member') {
@@ -4247,15 +4318,20 @@ function refreshNodes(el) {
         }
         return;
     }
-    var elNodes=nodes.filter(function(node) {
+    /* var elNodes=nodes.filter(function(node) {
         return (Math.floor(node.n/10)==Number(el.id));
-    });
+    });*/
     // console.log('refresh '+elNodes.length+' nodes for element '+el.id);
     var ox=0; // element origin for spin
     var oy=0;
     var r=0; // radius for spin
     var a=0; // angle
     var spin=parseInt(el.getAttribute('spin'));
+    
+    elNodes=nodes.filter(function(node) { // get nodes for selected element
+        return (Math.floor(node.n/10)==el.id);
+    });
+    
     switch(type(el)) {
         case 'line':
         case 'shape':
@@ -4302,19 +4378,46 @@ function refreshNodes(el) {
             var c=Math.cos(a);
             var s=Math.sin(a);
             // console.log(' spin: '+a+' radians cos: '+c+' sine: '+s);
-            // spin around centre
+            elNodes[0].x=x; // top/left
+            elNodes[0].y=y;
+            elNodes[1].x=x+c*w/2; // top/centre
+            elNodes[1].y=y+s*w/2;
+            elNodes[2].x=x+c*w; // top/right
+            elNodes[2].y=y+s*w;
+            elNodes[3].x=x-s*h/2; // centre/left
+            elNodes[3].y=y+c*h/2;
+            elNodes[4].x=x+c*w/2-s*h/2; // centre
+            elNodes[4].y=y+s*w/2+c*h/2;
+            elNodes[5].x=x+c*w-s*h/2; // centre/right
+            elNodes[5].y=y+s*w+c*h/2;
+            elNodes[6].x=x-s*h; // bottom/left
+            elNodes[6].y=y+c*h;
+            elNodes[7].x=x+c*w/2-s*h; // bottom/centre
+            elNodes[7].y=y+s*w/2+c*h;
+            elNodes[8].x=x+c*w-s*h; // bottom/right
+            elNodes[8].y=y+s*w+c*h;
+            /* OLD CODE - MOVER AT CENTRE & spin around centre
             x+=w/2; // centre
             y+=h/2;
             elNodes[0].x=x; // centre
             elNodes[0].y=y;
             elNodes[1].x=x-w*c/2+h*s/2; // top/left
             elNodes[1].y=y-w*s/2-h*c/2;
-            elNodes[2].x=x+w*c/2+h*s/2; // top/right
-            elNodes[2].y=y+w*s/2-h*c/2;
-            elNodes[3].x=x-w*c/2-h*s/2; // bottom/left
-            elNodes[3].y=y-w*s/2+h*c/2;
-            elNodes[4].x=x+w*c/2-h*s/2; // bottom/right
-            elNodes[4].y=y+w*s/2+h*c/2;
+            elNodes[2].x=x+s*h/2; // top/centre
+            elNodes[2].y=y-c*h/2;
+            elNodes[3].x=x+w*c/2+h*s/2; // top/right
+            elNodes[3].y=y+w*s/2-h*c/2;
+            elNodes[4].x=x+w*c/2; // centre/right
+            elNodes[4].y=y+w*s/2;
+            elNodes[5].x=x+w*c/2-h*s/2; // bottom/right
+            elNodes[5].y=y+w*s/2+h*c/2;
+            elNodes[6].x=x-h*s/2; // bottom/centre
+            elNodes[6].y=y+h*c/2;
+            elNodes[7].x=x-w*c/2-h*s/2; // bottom/left
+            elNodes[7].y=y-w*s/2+h*c/2;
+            elNodes[8].x=x-w*c/2; // centre/left
+            elNodes[8].y=y-w*s/2;
+            */
             break;
         case 'oval':
             x=Number(el.getAttribute('cx'));
@@ -4327,14 +4430,14 @@ function refreshNodes(el) {
             var s=Math.sin(a);
             elNodes[0].x=x; // centre
             elNodes[0].y=y;
-            elNodes[1].x=x-rx*c+ry*s; // top/left
-            elNodes[1].y=y-rx*s-ry*c;
-            elNodes[2].x=x+rx*c+ry*s; // top/right
-            elNodes[2].y=y+rx*s-ry*c;
-            elNodes[3].x=x-rx*c-ry*s; // bottom/left
-            elNodes[3].y=y-rx*s+ry*c;
-            elNodes[4].x=x+rx*c-ry*s; // bottom/right
-            elNodes[4].y=y+rx*s+ry*c;
+            elNodes[1].x=x+s*ry; // top/centre
+            elNodes[1].y=y-c*ry;
+            elNodes[2].x=x+rx*c; // centre/right
+            elNodes[2].y=y+rx*s;
+            elNodes[3].x=x-rx*c; // centre/left
+            elNodes[3].y=y-rx*s;
+            elNodes[4].x=x-s*ry; // bottom/centre
+            elNodes[4].y=y+c*ry;
             break;
         case 'arc':
             var d=el.getAttribute('d');
@@ -4404,7 +4507,7 @@ async function save(fileName,data,type) {
     await writable.write(data);
     await writable.close();
 }
-function select(el,multiple) {
+function select(el,multiple,snapNode) {
 	if(multiple) { // one of multiple selection - highlight in blue
 		// console.log('select element '+el.id+' of multiple selection');
 		var box=getBounds(el);
@@ -4415,33 +4518,38 @@ function select(el,multiple) {
 	}
 	else {
 		element=el;
+		if(snapNode) console.log('place mover on node '+snapNode.n+' at '+snapNode.x+','+snapNode.y);
 		var elementLayers=element.getAttribute('layer');
 		// console.log('SELECT ELEMENT '+element.getAttribute('id')+' - layer '+elementLayers);
 		getElement('layers').innerText=elementLayers;
 		for(var l=0;l<elementLayers.length;l++) getElement('choice'+l).checked=true;
     	getElement('handles').innerHTML=''; // clear any handles then add handles for selected element 
-    	for(i=0;i<nodes.length;i++) { // draw tiny circle at each node
-        if(Math.floor(nodes[i].n/10)!=elID) continue;
-        var html="<circle cx='"+nodes[i].x+"' cy='"+nodes[i].y+"' r='"+scale+"'/>";
-        // console.log('node at '+nodes[i].x+','+nodes[i].y);
-        getElement('handles').innerHTML+=html;
-    }
+    	elNodes=nodes.filter(function(node) { // get nodes for selected element
+        	return (Math.floor(node.n/10)==element.id);
+    	});
+    	console.log(elNodes.length+' nodes');
+    	for(i=0;i<elNodes.length;i++) { // draw tiny disc at each node
+    		var html="<use href='#node' x='"+elNodes[i].x+"' y='"+elNodes[i].y+"' r='"+scale/2+"'/>";
+    		console.log('node at '+elNodes[i].x+','+elNodes[i].y);
+    		getElement('handles').innerHTML+=html;
+    		// getElement('nodes').innerHTML+=html;
+    	}
     	switch(type(el)) {
     		case 'curve':
 				var graphs=db.transaction('graphs','readwrite').objectStore('graphs');
 				var request=graphs.get(Number(el.id));
 				request.onsuccess=function(event) {
 					var graph=request.result;
-					// console.log('got graph '+graph.id);
+					console.log('got graph '+graph.id+' points: '+graph.points);
 					el.points=pointsArray(graph.points);
 					// console.log(el.points.length+' points');
 					getElement('bluePolyline').setAttribute('points',graph.points);
-					var html="<use id='mover0' href='#mover' x='"+el.points[0].x+"' y='"+el.points[0].y+"'/>";
+					var html='';
+					for(var i=1;i<el.points.length;i++) html+="<use id='sizer"+i+"' href='#sizer' x='"+el.points[i].x+"' y='"+el.points[i].y+"'/>";
+					// getElement('handles').innerHTML+=html; // disc handles move nodes
+					if(snapNode) html+="<use id='mover"+snapNode.n%10+"' href='#mover' x='"+snapNode.x+"' y='"+snapNode.y+"'/>"; // mover at node
+					else html+="<use id='mover0' href='#mover' x='"+el.points[0].x+"' y='"+el.points[0].y+"'/>"; // mover at start
 					getElement('handles').innerHTML+=html; // circle handle moves whole element
-					for(var i=1;i<el.points.length;i++) {
-						html="<use id='sizer"+i+"' href='#sizer' x='"+el.points[i].x+"' y='"+el.points[i].y+"'/>";
-						getElement('handles').innerHTML+=html; // disc handles move remaining nodes
-					}
 					hint('CURVE');
 				}
 				getElement('guides').style.display='block';
@@ -4458,12 +4566,14 @@ function select(el,multiple) {
             	// console.log('bounds: '+w+'x'+h+'mm; '+n+' points');
             	setSizes('box',el.getAttribute('spin'),w,h); // size of bounding box
             	// draw handles
-            	var html="<use id='mover0' href='#mover' x='"+points[0].x+"' y='"+points[0].y+"'/>";
-            	getElement('handles').innerHTML+=html; // circle handle moves whole element
+            	var html='';
             	for(var i=1;i<n;i++) {
                 	html="<use id='sizer"+i+"' href='#sizer' x='"+points[i].x+"' y='"+points[i].y+"'/>";
                 	getElement('handles').innerHTML+=html; // disc handles move remaining nodes
             	}
+            	if(snapNode) html="<use id='mover"+snapNode.n%10+"' href='#mover' x='"+snapNode.x+"' y='"+snapNode.y+"'/>"; // mover at node
+            	else html="<use id='mover0' href='#mover' x='"+points[0].x+"' y='"+points[0].y+"'/>"; // mover at start
+            	getElement('handles').innerHTML+=html; // circle handle moves whole element
             	getElement('bluePolyline').setAttribute('points',el.getAttribute('points'));
             	getElement('guides').style.display='block';
             	// console.log('type: '+type(el)+'; layer: '+el.getAttribute('layer'));
@@ -4481,9 +4591,11 @@ function select(el,multiple) {
             	getElement('blueBox').setAttribute('y',y);
             	getElement('blueBox').setAttribute('width',w);
             	getElement('blueBox').setAttribute('height',h);
+            	getElement('blueBox').setAttribute('transform','rotate(0)');
             	getElement('guides').style.display='block';
-            	var html="<use id='mover0' href='#mover' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // center
-            	html+="<use id='sizer1' href='#sizer' x='"+(x+w)+"' y='"+(y+h)+"'/>"; // bottom/right WAS sizer4
+            	var html="<use id='sizer' href='#sizer' x='"+(x+w)+"' y='"+(y+h)+"'/>"; // sizer at bottom/right
+            	if(snapNode) html+="<use id='mover"+snapNode.n%10+"' href='#mover' x='"+snapNode.x+"' y='"+snapNode.y+"'/>"; // mover at a node
+            	else html+="<use id='mover0' href='#mover' x='"+x+"' y='"+y+"'/>"; // mover at top/left
             	getElement('handles').innerHTML+=html;
             	// console.log('spin: '+el.getAttribute('spin')+' layer is '+el.getAttribute('layer'));
             	setSizes('box',el.getAttribute('spin'),w,h);
@@ -4500,22 +4612,35 @@ function select(el,multiple) {
             	getElement('blueBox').setAttribute('y',(y-h/2));
             	getElement('blueBox').setAttribute('width',w);
             	getElement('blueBox').setAttribute('height',h);
+            	getElement('blueBox').setAttribute('transform','rotate(0)');
             	getElement('guides').style.display='block';
-            	var html="<use id='mover0' href='#mover' x='"+x+"' y='"+y+"'/>"; // center
-            	html+="<use id='sizer1' href='#sizer' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/right WAS sizer4
+            	var html='';
+            	if(snapNode) html="<use id='mover"+snapNode.n%10+"' href='#mover' x='"+snapNode.x+"' y='"+snapNode.y+"'/>"; // mover at a node
+            	else html="<use id='mover0' href='#mover' x='"+x+"' y='"+y+"'/>"; // mover at centre
+            	html+="<use id='sizer' href='#sizer' x='"+(x+w/2)+"' y='"+(y+h/2)+"'/>"; // bottom/right
             	getElement('handles').innerHTML+=html;
             	setSizes('box',el.getAttribute('spin'),w,h);
             	showInfo(true,(w==h)?'CIRCLE':'OVAL',el.getAttribute('layer'));
             	node=0; // default anchor node
             	mode='edit';
+            	/*
+            	// var elementNodes=nodes.filter(function(node) {
+        			return (Math.floor(node.n/10)==el.id);
+    			});
+    			console.log('element '+el.id+' has '+elNodes.length+' nodes');
+    			for(var i=0;i<elNodes.length;i++) {
+    				console.log('node '+i+' '+Math.floor(elNodes[i].x)+','+Math.floor(elNodes[i].y)+' #'+elNodes[i].n);
+    			}
+            	*/
             	break;
         	case 'arc':
             	var d=el.getAttribute('d');
             	// console.log('select arc - d: '+d);
             	getArc(d); // derive arc geometry from d
-            	var html="<use id='mover0' href='#mover' x='"+arc.cx+"' y='"+arc.cy+"'/>"; // mover at centre
-            	html+="<use id='sizer1' href='#sizer' x='"+arc.x1+"' y='"+arc.y1+"'/>"; // sizers at start...
+            	html="<use id='sizer1' href='#sizer' x='"+arc.x1+"' y='"+arc.y1+"'/>"; // sizers at start...
             	html+="<use id='sizer2' href='#sizer' x='"+arc.x2+"' y='"+arc.y2+"'/>"; // ...and end or arc
+            	if(snapNode) html+="<use id='mover"+snapNode.n%10+"' href='#mover' x='"+snapNode.x+"' y='"+snapNode.y+"'/>"; // mover at a node
+            	else html+="<use id='mover0' href='#mover' x='"+arc.cx+"' y='"+arc.cy+"'/>"; // mover at centre
             	getElement('handles').innerHTML+=html;
             	var a1=Math.atan((arc.y1-arc.cy)/(arc.x1-arc.cx));
             	if(arc.x1<arc.cx) a1+=Math.PI;
@@ -4572,7 +4697,6 @@ function select(el,multiple) {
     	        var html="<use id='mover0' href='#mover' x='"+((x1+x2)/2)+"' y='"+((y1+y2)/2)+"' "; 
         	    html+="transform='"+spin+"'/>";
             	getElement('handles').innerHTML+=html;
-	            prompt('DIMENSION');
     	        mode='edit';
         	    break;
 	        case 'set':
@@ -4613,7 +4737,7 @@ function select(el,multiple) {
 function setButtons() {
     var n=selection.length;
     // console.log('set buttons for '+n+' selected elements');
-    var active=[3,9,11,13,17,25]; // active buttons - remove, move, spin, flip, copy and anchor always active
+    var active=[3,9,11,13,17,25,29]; // active - remove, move, spin, flip, copy, anchor & return buttons always active
     // childNodes of editTools are... 0:add 1:remove 2:forward 3:back 4:move 5:spin 6:flip 7:align 8:copy 9:double 10:repeat 11:fillet 12: anchor 13:join
     if(n>1) { // multiple selection
         if(anchor) { // join active if anchor available for multiple selection
@@ -4656,7 +4780,7 @@ function setLayer() {
 	updateGraph(element.id,['layer',elementLayers]);
 }
 function setLayers() {
-	console.log('set layers');
+	// console.log('set layers');
 	for(var i=0;i<10;i++) {
 		// console.log('layer '+i+' name: '+layers[i].name+' chosen: '+layers[i].checked+' show: '+layers[i].show);
 		if(getElement('layer'+i).checked) layer=i;
@@ -4836,8 +4960,8 @@ function setTransform(el) {
             y=parseInt(el.points[0].y);
             break;
         case 'box':
-            x=parseInt(el.getAttribute('x'))+parseInt(el.getAttribute('width'))/2;
-            y=parseInt(el.getAttribute('y'))+parseInt(el.getAttribute('height'))/2;
+            x=parseInt(el.getAttribute('x')); // +parseInt(el.getAttribute('width'))/2;
+            y=parseInt(el.getAttribute('y')); // +parseInt(el.getAttribute('height'))/2;
             break;
         case 'text':
         case 'set':
